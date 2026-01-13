@@ -1,0 +1,27 @@
+{
+  "name": "@virtus/sdk",
+  "version": "1.0.0",
+  "description": "JavaScript SDK for Virtus AI Platform",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "virtus",
+    "ai",
+    "sdk",
+    "chat",
+    "llm"
+  ]
+}
