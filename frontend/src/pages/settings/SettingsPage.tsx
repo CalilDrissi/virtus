@@ -1,5 +1,5 @@
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Tile, ContainedList, ContainedListItem } from '@carbon/react';
+import { Tile } from '@carbon/react';
 import { User, Enterprise, Password, Wallet } from '@carbon/icons-react';
 import ProfileSettings from './ProfileSettings';
 import OrganizationSettings from './OrganizationSettings';

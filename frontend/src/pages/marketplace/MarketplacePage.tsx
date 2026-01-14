@@ -9,7 +9,6 @@ import {
   TextInput,
   Dropdown,
 } from '@carbon/react';
-import { Search } from '@carbon/icons-react';
 import { useState } from 'react';
 import { modelsApi } from '../../services/api';
 import { AIModel } from '../../types';

@@ -11,7 +11,6 @@ import {
   TableBody,
   TableCell,
 } from '@carbon/react';
-import { Search } from '@carbon/icons-react';
 import { useState } from 'react';
 import { adminApi } from '../../services/api';
 import { OrganizationWithStats } from '../../types';

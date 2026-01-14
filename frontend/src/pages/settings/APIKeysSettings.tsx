@@ -7,7 +7,6 @@ import {
   Tag,
   Modal,
   InlineNotification,
-  DataTable,
   Table,
   TableHead,
   TableRow,
@@ -25,7 +24,7 @@ export default function APIKeysSettings() {
   const [newKey, setNewKey] = useState({ name: '', scopes: ['read', 'write'] });
   const [createdKey, setCreatedKey] = useState<string | null>(null);
 
-  const { data: apiKeys, isLoading } = useQuery<APIKey[]>({
+  const { data: apiKeys } = useQuery<APIKey[]>({
     queryKey: ['api-keys'],
     queryFn: () => authApi.listApiKeys().then(res => res.data),
   });

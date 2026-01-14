@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import {
   Tile,
   TextInput,
@@ -11,7 +11,6 @@ import { useAuthStore } from '../../stores/authStore';
 import { organizationsApi } from '../../services/api';
 
 export default function OrganizationSettings() {
-  const queryClient = useQueryClient();
   const { organization, fetchUser } = useAuthStore();
   const [formData, setFormData] = useState({
     name: organization?.name || '',

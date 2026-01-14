@@ -12,7 +12,7 @@ import {
 } from '@carbon/react';
 import { Add, TrashCan, Upload } from '@carbon/icons-react';
 import { dataSourcesApi } from '../services/api';
-import { DataSource, Document } from '../types';
+import { DataSource } from '../types';
 
 const sourceTypes = [
   { id: 'document', text: 'Documents' },
