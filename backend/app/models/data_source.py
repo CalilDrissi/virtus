@@ -59,7 +59,7 @@ class Document(Base):
     chunk_count = Column(Integer, default=0, nullable=False)
     status = Column(Enum(ProcessingStatus), default=ProcessingStatus.PENDING, nullable=False)
     error_message = Column(Text, nullable=True)
-    metadata = Column(JSONB, default=dict, nullable=False)
+    doc_metadata = Column(JSONB, default=dict, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

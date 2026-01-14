@@ -1,95 +1,17 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
-  makeStyles,
-  tokens,
-  Card,
-  Text,
-  Spinner,
-  Badge,
+  Tile,
   Button,
-  Divider,
-} from '@fluentui/react-components';
-import {
-  ArrowLeft24Regular,
-  Chat24Regular,
-  Money24Regular,
-  Checkmark24Regular,
-} from '@fluentui/react-icons';
+  Loading,
+  Tag,
+  InlineLoading,
+} from '@carbon/react';
+import { ArrowLeft, Chat, Checkmark, Money } from '@carbon/icons-react';
 import { modelsApi, subscriptionsApi } from '../../services/api';
 import { AIModel } from '../../types';
 
-const useStyles = makeStyles({
-  container: {
-    maxWidth: '800px',
-    margin: '0 auto',
-  },
-  backButton: {
-    marginBottom: tokens.spacingVerticalM,
-  },
-  card: {
-    padding: tokens.spacingVerticalXL,
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: tokens.spacingHorizontalL,
-    marginBottom: tokens.spacingVerticalL,
-  },
-  modelIcon: {
-    width: '80px',
-    height: '80px',
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorBrandBackground2,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: tokens.fontSizeHero900,
-    fontWeight: tokens.fontWeightSemibold,
-    color: tokens.colorBrandForeground1,
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  badges: {
-    display: 'flex',
-    gap: tokens.spacingHorizontalS,
-    marginTop: tokens.spacingVerticalS,
-  },
-  section: {
-    marginTop: tokens.spacingVerticalL,
-  },
-  pricingCard: {
-    padding: tokens.spacingVerticalL,
-    backgroundColor: tokens.colorNeutralBackground3,
-    borderRadius: tokens.borderRadiusMedium,
-    marginTop: tokens.spacingVerticalM,
-  },
-  priceRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: tokens.spacingVerticalS,
-  },
-  features: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalS,
-    marginTop: tokens.spacingVerticalM,
-  },
-  feature: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: tokens.spacingHorizontalS,
-  },
-  actions: {
-    display: 'flex',
-    gap: tokens.spacingHorizontalM,
-    marginTop: tokens.spacingVerticalL,
-  },
-});
-
 export default function ModelDetailPage() {
-  const styles = useStyles();
   const { modelId } = useParams<{ modelId: string }>();
   const navigate = useNavigate();
 
@@ -112,16 +34,16 @@ export default function ModelDetailPage() {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-        <Spinner size="large" label="Loading model..." />
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+        <Loading description="Loading model..." withOverlay={false} />
       </div>
     );
   }
 
   if (!model) {
     return (
-      <div style={{ textAlign: 'center', padding: '40px' }}>
-        <Text>Model not found</Text>
+      <div style={{ textAlign: 'center', padding: '3rem' }}>
+        <p>Model not found</p>
       </div>
     );
   }
@@ -129,125 +51,132 @@ export default function ModelDetailPage() {
   const formatPrice = (value: number) => `$${value.toFixed(4)}`;
 
   return (
-    <div className={styles.container}>
+    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
       <Button
-        className={styles.backButton}
-        appearance="subtle"
-        icon={<ArrowLeft24Regular />}
+        kind="ghost"
+        renderIcon={ArrowLeft}
         onClick={() => navigate('/marketplace')}
+        style={{ marginBottom: '1rem' }}
       >
         Back to Marketplace
       </Button>
 
-      <Card className={styles.card}>
-        <div className={styles.header}>
-          <div className={styles.modelIcon}>
+      <Tile style={{ padding: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '1.5rem' }}>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            borderRadius: '8px',
+            backgroundColor: 'var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '2rem',
+            fontWeight: 600,
+            color: 'var(--brand-primary)',
+          }}>
             {model.icon_url ? (
-              <img src={model.icon_url} alt={model.name} style={{ width: '100%', height: '100%' }} />
+              <img src={model.icon_url} alt={model.name} style={{ width: '100%', height: '100%', borderRadius: '8px' }} />
             ) : (
               model.name.charAt(0).toUpperCase()
             )}
           </div>
-          <div className={styles.headerInfo}>
-            <Text size={700} weight="semibold" block>{model.name}</Text>
-            <div className={styles.badges}>
-              <Badge appearance="outline">{model.category.replace('_', ' ')}</Badge>
-              <Badge appearance="outline" color="informative">{model.provider}</Badge>
+          <div style={{ flex: 1 }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 400, marginBottom: '0.5rem' }}>{model.name}</h1>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Tag type="outline">{model.category.replace('_', ' ')}</Tag>
+              <Tag type="blue">{model.provider}</Tag>
             </div>
           </div>
         </div>
 
-        <Text>{model.description || 'No description available.'}</Text>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>{model.description || 'No description available.'}</p>
 
-        <Divider style={{ margin: `${tokens.spacingVerticalL} 0` }} />
-
-        <div className={styles.section}>
-          <Text size={500} weight="semibold" block>
-            <Money24Regular style={{ marginRight: tokens.spacingHorizontalS }} />
-            Pricing
-          </Text>
-
-          <div className={styles.pricingCard}>
+        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.5rem', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Money size={20} /> Pricing
+          </h2>
+          <Tile style={{ backgroundColor: 'var(--bg-primary)', padding: '1rem' }}>
             {model.pricing ? (
-              <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {model.pricing.monthly_subscription_price > 0 && (
-                  <div className={styles.priceRow}>
-                    <Text>Monthly Subscription</Text>
-                    <Text weight="semibold">${model.pricing.monthly_subscription_price}/mo</Text>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Monthly Subscription</span>
+                    <strong>${model.pricing.monthly_subscription_price}/mo</strong>
                   </div>
                 )}
                 {model.pricing.price_per_1k_input_tokens > 0 && (
-                  <div className={styles.priceRow}>
-                    <Text>Input Tokens (per 1K)</Text>
-                    <Text weight="semibold">{formatPrice(model.pricing.price_per_1k_input_tokens)}</Text>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Input Tokens (per 1K)</span>
+                    <strong>{formatPrice(model.pricing.price_per_1k_input_tokens)}</strong>
                   </div>
                 )}
                 {model.pricing.price_per_1k_output_tokens > 0 && (
-                  <div className={styles.priceRow}>
-                    <Text>Output Tokens (per 1K)</Text>
-                    <Text weight="semibold">{formatPrice(model.pricing.price_per_1k_output_tokens)}</Text>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Output Tokens (per 1K)</span>
+                    <strong>{formatPrice(model.pricing.price_per_1k_output_tokens)}</strong>
                   </div>
                 )}
                 {model.pricing.price_per_request > 0 && (
-                  <div className={styles.priceRow}>
-                    <Text>Per Request</Text>
-                    <Text weight="semibold">{formatPrice(model.pricing.price_per_request)}</Text>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Per Request</span>
+                    <strong>{formatPrice(model.pricing.price_per_request)}</strong>
                   </div>
                 )}
                 {model.pricing.included_tokens > 0 && (
-                  <div className={styles.priceRow}>
-                    <Text>Included Tokens</Text>
-                    <Text weight="semibold">{model.pricing.included_tokens.toLocaleString()}</Text>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Included Tokens</span>
+                    <strong>{model.pricing.included_tokens.toLocaleString()}</strong>
                   </div>
                 )}
-              </>
+              </div>
             ) : (
-              <Text>Free to use</Text>
+              <span>Free to use</span>
             )}
+          </Tile>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>Features</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Checkmark size={20} style={{ color: 'var(--success)' }} />
+              <span>Max {model.max_tokens.toLocaleString()} output tokens</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Checkmark size={20} style={{ color: 'var(--success)' }} />
+              <span>Streaming responses supported</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Checkmark size={20} style={{ color: 'var(--success)' }} />
+              <span>RAG integration available</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Checkmark size={20} style={{ color: 'var(--success)' }} />
+              <span>API & SDK access</span>
+            </div>
           </div>
         </div>
 
-        <div className={styles.section}>
-          <Text size={500} weight="semibold" block>Features</Text>
-          <div className={styles.features}>
-            <div className={styles.feature}>
-              <Checkmark24Regular style={{ color: tokens.colorPaletteGreenForeground1 }} />
-              <Text>Max {model.max_tokens.toLocaleString()} output tokens</Text>
-            </div>
-            <div className={styles.feature}>
-              <Checkmark24Regular style={{ color: tokens.colorPaletteGreenForeground1 }} />
-              <Text>Streaming responses supported</Text>
-            </div>
-            <div className={styles.feature}>
-              <Checkmark24Regular style={{ color: tokens.colorPaletteGreenForeground1 }} />
-              <Text>RAG integration available</Text>
-            </div>
-            <div className={styles.feature}>
-              <Checkmark24Regular style={{ color: tokens.colorPaletteGreenForeground1 }} />
-              <Text>API & SDK access</Text>
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.actions}>
+        <div style={{ display: 'flex', gap: '1rem' }}>
           <Button
-            appearance="primary"
-            size="large"
+            kind="primary"
+            size="lg"
             onClick={() => subscribeMutation.mutate()}
             disabled={subscribeMutation.isPending}
           >
-            {subscribeMutation.isPending ? <Spinner size="tiny" /> : 'Subscribe Now'}
+            {subscribeMutation.isPending ? <InlineLoading description="Processing..." /> : 'Subscribe Now'}
           </Button>
           <Button
-            appearance="outline"
-            size="large"
-            icon={<Chat24Regular />}
+            kind="tertiary"
+            size="lg"
+            renderIcon={Chat}
             onClick={() => navigate(`/chat?model=${model.id}`)}
           >
             Try in Chat
           </Button>
         </div>
-      </Card>
+      </Tile>
     </div>
   );
 }

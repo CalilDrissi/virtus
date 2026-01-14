@@ -1,59 +1,21 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
-  makeStyles,
-  tokens,
-  Card,
-  Text,
+  Tile,
   Button,
+  Loading,
+  Tag,
   Table,
-  TableHeader,
+  TableHead,
   TableRow,
-  TableHeaderCell,
+  TableHeader,
   TableBody,
   TableCell,
-  Badge,
-  Spinner,
-} from '@fluentui/react-components';
-import { Open24Regular } from '@fluentui/react-icons';
+} from '@carbon/react';
+import { Launch } from '@carbon/icons-react';
 import { billingApi } from '../../services/api';
 import { UsageSummary } from '../../types';
 
-const useStyles = makeStyles({
-  card: {
-    padding: tokens.spacingVerticalXL,
-    marginBottom: tokens.spacingVerticalL,
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: tokens.spacingVerticalL,
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: tokens.spacingHorizontalL,
-    marginBottom: tokens.spacingVerticalL,
-  },
-  stat: {
-    padding: tokens.spacingVerticalM,
-    backgroundColor: tokens.colorNeutralBackground3,
-    borderRadius: tokens.borderRadiusMedium,
-    textAlign: 'center',
-  },
-  statValue: {
-    fontSize: tokens.fontSizeHero700,
-    fontWeight: tokens.fontWeightSemibold,
-  },
-  statLabel: {
-    color: tokens.colorNeutralForeground3,
-    fontSize: tokens.fontSizeBase200,
-  },
-});
-
 export default function BillingSettings() {
-  const styles = useStyles();
-
   const { data: usage, isLoading: usageLoading } = useQuery<UsageSummary>({
     queryKey: ['billing-usage'],
     queryFn: () => billingApi.getUsage().then(res => res.data),
@@ -73,25 +35,30 @@ export default function BillingSettings() {
 
   if (usageLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-        <Spinner size="large" label="Loading billing information..." />
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+        <Loading description="Loading billing information..." withOverlay={false} />
       </div>
     );
   }
 
+  const totalRequests = Number(usage?.total_requests) || 0;
+  const totalInputTokens = Number(usage?.total_input_tokens) || 0;
+  const totalOutputTokens = Number(usage?.total_output_tokens) || 0;
+  const totalCost = Number(usage?.total_cost) || 0;
+
   return (
-    <div>
-      <Card className={styles.card}>
-        <div className={styles.header}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <Tile style={{ padding: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
           <div>
-            <Text size={600} weight="semibold" block>Current Usage</Text>
-            <Text style={{ color: tokens.colorNeutralForeground3 }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 400, marginBottom: '0.5rem' }}>Current Usage</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
               {usage?.period_start && new Date(usage.period_start).toLocaleDateString()} - {usage?.period_end && new Date(usage.period_end).toLocaleDateString()}
-            </Text>
+            </p>
           </div>
           <Button
-            appearance="outline"
-            icon={<Open24Regular />}
+            kind="tertiary"
+            renderIcon={Launch}
             onClick={() => portalMutation.mutate()}
             disabled={portalMutation.isPending}
           >
@@ -99,41 +66,33 @@ export default function BillingSettings() {
           </Button>
         </div>
 
-        <div className={styles.statsGrid}>
-          <div className={styles.stat}>
-            <Text className={styles.statValue} block>
-              {usage?.total_requests?.toLocaleString() || 0}
-            </Text>
-            <Text className={styles.statLabel}>Requests</Text>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div style={{ padding: '1rem', backgroundColor: 'var(--bg-primary)', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.75rem', fontWeight: 300 }}>{totalRequests.toLocaleString()}</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Requests</div>
           </div>
-          <div className={styles.stat}>
-            <Text className={styles.statValue} block>
-              {((usage?.total_input_tokens || 0) + (usage?.total_output_tokens || 0)).toLocaleString()}
-            </Text>
-            <Text className={styles.statLabel}>Tokens</Text>
+          <div style={{ padding: '1rem', backgroundColor: 'var(--bg-primary)', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.75rem', fontWeight: 300 }}>{(totalInputTokens + totalOutputTokens).toLocaleString()}</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Tokens</div>
           </div>
-          <div className={styles.stat}>
-            <Text className={styles.statValue} block>
-              ${usage?.total_cost?.toFixed(2) || '0.00'}
-            </Text>
-            <Text className={styles.statLabel}>Current Bill</Text>
+          <div style={{ padding: '1rem', backgroundColor: 'var(--bg-primary)', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.75rem', fontWeight: 300 }}>${totalCost.toFixed(2)}</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Current Bill</div>
           </div>
         </div>
 
         {usage?.by_model && usage.by_model.length > 0 && (
           <>
-            <Text weight="semibold" block style={{ marginBottom: tokens.spacingVerticalS }}>
-              Usage by Model
-            </Text>
+            <h3 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Usage by Model</h3>
             <Table>
-              <TableHeader>
+              <TableHead>
                 <TableRow>
-                  <TableHeaderCell>Model</TableHeaderCell>
-                  <TableHeaderCell>Requests</TableHeaderCell>
-                  <TableHeaderCell>Tokens</TableHeaderCell>
-                  <TableHeaderCell>Cost</TableHeaderCell>
+                  <TableHeader>Model</TableHeader>
+                  <TableHeader>Requests</TableHeader>
+                  <TableHeader>Tokens</TableHeader>
+                  <TableHeader>Cost</TableHeader>
                 </TableRow>
-              </TableHeader>
+              </TableHead>
               <TableBody>
                 {usage.by_model.map((model, index) => (
                   <TableRow key={index}>
@@ -147,25 +106,23 @@ export default function BillingSettings() {
             </Table>
           </>
         )}
-      </Card>
+      </Tile>
 
-      <Card className={styles.card}>
-        <Text size={600} weight="semibold" block style={{ marginBottom: tokens.spacingVerticalL }}>
-          Invoices
-        </Text>
+      <Tile style={{ padding: '2rem' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 400, marginBottom: '1.5rem' }}>Invoices</h2>
 
         {invoicesLoading ? (
-          <Spinner size="small" />
+          <Loading small withOverlay={false} />
         ) : invoices?.length > 0 ? (
           <Table>
-            <TableHeader>
+            <TableHead>
               <TableRow>
-                <TableHeaderCell>Period</TableHeaderCell>
-                <TableHeaderCell>Amount</TableHeaderCell>
-                <TableHeaderCell>Status</TableHeaderCell>
-                <TableHeaderCell>Actions</TableHeaderCell>
+                <TableHeader>Period</TableHeader>
+                <TableHeader>Amount</TableHeader>
+                <TableHeader>Status</TableHeader>
+                <TableHeader>Actions</TableHeader>
               </TableRow>
-            </TableHeader>
+            </TableHead>
             <TableBody>
               {invoices.map((invoice: { id: string; period_start: string; period_end: string; amount_due: number; currency: string; status: string; pdf_url?: string }) => (
                 <TableRow key={invoice.id}>
@@ -176,15 +133,15 @@ export default function BillingSettings() {
                     ${(invoice.amount_due / 100).toFixed(2)} {invoice.currency.toUpperCase()}
                   </TableCell>
                   <TableCell>
-                    <Badge color={invoice.status === 'paid' ? 'success' : 'warning'}>
+                    <Tag type={invoice.status === 'paid' ? 'green' : 'magenta'}>
                       {invoice.status}
-                    </Badge>
+                    </Tag>
                   </TableCell>
                   <TableCell>
                     {invoice.pdf_url && (
                       <Button
-                        appearance="subtle"
-                        size="small"
+                        kind="ghost"
+                        size="sm"
                         onClick={() => window.open(invoice.pdf_url, '_blank')}
                       >
                         Download
@@ -196,11 +153,9 @@ export default function BillingSettings() {
             </TableBody>
           </Table>
         ) : (
-          <Text style={{ color: tokens.colorNeutralForeground3 }}>
-            No invoices yet.
-          </Text>
+          <p style={{ color: 'var(--text-secondary)' }}>No invoices yet.</p>
         )}
-      </Card>
+      </Tile>
     </div>
   );
 }

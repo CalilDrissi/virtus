@@ -28,7 +28,7 @@ class Conversation(Base):
     model_id = Column(UUID(as_uuid=True), ForeignKey("ai_models.id", ondelete="SET NULL"), nullable=True)
     channel = Column(Enum(ConversationChannel), nullable=False)
     title = Column(String(255), nullable=True)
-    metadata = Column(JSONB, default=dict, nullable=False)
+    conv_metadata = Column(JSONB, default=dict, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -50,7 +50,7 @@ class Message(Base):
     content = Column(Text, nullable=False)
     input_tokens = Column(Integer, default=0, nullable=False)
     output_tokens = Column(Integer, default=0, nullable=False)
-    metadata = Column(JSONB, default=dict, nullable=False)  # Context docs, etc.
+    msg_metadata = Column(JSONB, default=dict, nullable=False)  # Context docs, etc.
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships

@@ -10,8 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fluentui/react-components": "^9.47.0",
-    "@fluentui/react-icons": "^2.0.230",
+    "@carbon/icons-react": "^11.52.0",
+    "@carbon/react": "^1.71.0",
     "@tanstack/react-query": "^5.17.0",
     "axios": "^1.6.5",
     "react": "^18.2.0",
@@ -29,7 +29,9 @@
     "eslint": "^8.56.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "playwright": "^1.57.0",
     "postcss": "^8.4.33",
+    "sass": "^1.97.2",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
     "vite": "^5.0.11"

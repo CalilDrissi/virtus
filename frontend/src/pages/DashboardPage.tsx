@@ -1,202 +1,95 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  makeStyles,
-  tokens,
-  Card,
-  CardHeader,
-  Text,
-  Spinner,
-  Badge,
-} from '@fluentui/react-components';
-import {
-  Wallet24Regular,
-  TextBulletListSquare24Regular,
-  ArrowTrending24Regular,
-  Database24Regular,
-} from '@fluentui/react-icons';
-import { organizationsApi, subscriptionsApi, billingApi } from '../services/api';
+import { Tile, Loading, Tag } from '@carbon/react';
+import { subscriptionsApi, billingApi } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
-import { SubscriptionWithUsage, UsageSummary } from '../types';
-
-const useStyles = makeStyles({
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalXL,
-  },
-  header: {
-    marginBottom: tokens.spacingVerticalM,
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: tokens.spacingHorizontalL,
-  },
-  statCard: {
-    padding: tokens.spacingVerticalL,
-  },
-  statContent: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: tokens.spacingHorizontalM,
-  },
-  statIcon: {
-    padding: tokens.spacingVerticalS,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorBrandBackground2,
-    color: tokens.colorBrandForeground1,
-  },
-  statValue: {
-    fontSize: tokens.fontSizeHero800,
-    fontWeight: tokens.fontWeightSemibold,
-    lineHeight: '1',
-  },
-  statLabel: {
-    color: tokens.colorNeutralForeground3,
-    fontSize: tokens.fontSizeBase200,
-  },
-  section: {
-    marginTop: tokens.spacingVerticalL,
-  },
-  subscriptionGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: tokens.spacingHorizontalM,
-    marginTop: tokens.spacingVerticalM,
-  },
-  subscriptionCard: {
-    padding: tokens.spacingVerticalM,
-  },
-  subscriptionHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: tokens.spacingVerticalS,
-  },
-  usageBar: {
-    height: '8px',
-    backgroundColor: tokens.colorNeutralBackground3,
-    borderRadius: tokens.borderRadiusMedium,
-    overflow: 'hidden',
-    marginTop: tokens.spacingVerticalS,
-  },
-  usageProgress: {
-    height: '100%',
-    backgroundColor: tokens.colorBrandBackground,
-    transition: 'width 0.3s ease',
-  },
-});
 
 export default function DashboardPage() {
-  const styles = useStyles();
   const { organization } = useAuthStore();
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['organization-stats'],
-    queryFn: () => organizationsApi.getStats().then(res => res.data),
-  });
-
-  const { data: subscriptions, isLoading: subsLoading } = useQuery<SubscriptionWithUsage[]>({
+  const { data: subscriptions = [], isLoading: subsLoading } = useQuery({
     queryKey: ['active-subscriptions'],
     queryFn: () => subscriptionsApi.listActive().then(res => res.data),
   });
 
-  const { data: usage, isLoading: usageLoading } = useQuery<UsageSummary>({
+  const { data: usage, isLoading: usageLoading } = useQuery({
     queryKey: ['billing-usage'],
     queryFn: () => billingApi.getUsage().then(res => res.data),
   });
 
-  const isLoading = statsLoading || subsLoading || usageLoading;
-
-  if (isLoading) {
+  if (subsLoading || usageLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-        <Spinner size="large" label="Loading dashboard..." />
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+        <Loading description="Loading dashboard..." withOverlay={false} />
       </div>
     );
   }
 
-  const statCards = [
-    {
-      icon: <TextBulletListSquare24Regular />,
-      value: subscriptions?.length || 0,
-      label: 'Active Subscriptions',
-    },
-    {
-      icon: <ArrowTrending24Regular />,
-      value: usage?.total_requests?.toLocaleString() || '0',
-      label: 'API Requests (This Month)',
-    },
-    {
-      icon: <Database24Regular />,
-      value: `${((usage?.total_input_tokens || 0) + (usage?.total_output_tokens || 0)).toLocaleString()}`,
-      label: 'Total Tokens Used',
-    },
-    {
-      icon: <Wallet24Regular />,
-      value: `$${usage?.total_cost?.toFixed(2) || '0.00'}`,
-      label: 'Current Bill',
-    },
-  ];
+  const totalRequests = Number(usage?.total_requests) || 0;
+  const totalInputTokens = Number(usage?.total_input_tokens) || 0;
+  const totalOutputTokens = Number(usage?.total_output_tokens) || 0;
+  const totalCost = Number(usage?.total_cost) || 0;
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <Text size={700} weight="semibold" block>
-          Welcome back
-        </Text>
-        <Text size={400} style={{ color: tokens.colorNeutralForeground3 }}>
-          Here's what's happening with {organization?.name}
-        </Text>
-      </div>
+    <div>
+      <h1 style={{ fontSize: '2rem', fontWeight: 400, marginBottom: '0.5rem' }}>
+        Welcome back
+      </h1>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
+        Here's what's happening with {organization?.name}
+      </p>
 
-      <div className={styles.statsGrid}>
-        {statCards.map((stat, index) => (
-          <Card key={index} className={styles.statCard}>
-            <div className={styles.statContent}>
-              <div className={styles.statIcon}>{stat.icon}</div>
-              <div>
-                <Text className={styles.statValue}>{stat.value}</Text>
-                <Text className={styles.statLabel} block>{stat.label}</Text>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <div className={styles.section}>
-        <Text size={500} weight="semibold">Active Subscriptions</Text>
-        {subscriptions && subscriptions.length > 0 ? (
-          <div className={styles.subscriptionGrid}>
-            {subscriptions.map((sub) => (
-              <Card key={sub.id} className={styles.subscriptionCard}>
-                <div className={styles.subscriptionHeader}>
-                  <Text weight="semibold">{sub.model?.name || 'Unknown Model'}</Text>
-                  <Badge appearance="filled" color="success">Active</Badge>
-                </div>
-                <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
-                  {sub.usage_this_period.toLocaleString()} tokens used
-                </Text>
-                <div className={styles.usageBar}>
-                  <div
-                    className={styles.usageProgress}
-                    style={{ width: `${Math.min((sub.usage_this_period / 1000000) * 100, 100)}%` }}
-                  />
-                </div>
-                <Text size={200} style={{ color: tokens.colorNeutralForeground3, marginTop: tokens.spacingVerticalXS }}>
-                  ${sub.cost_this_period.toFixed(2)} this period
-                </Text>
-              </Card>
-            ))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+        <Tile style={{ padding: '1.5rem' }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: 300, color: 'var(--text-primary)' }}>
+            {subscriptions?.length || 0}
           </div>
-        ) : (
-          <Card style={{ padding: tokens.spacingVerticalL, marginTop: tokens.spacingVerticalM }}>
-            <Text style={{ color: tokens.colorNeutralForeground3 }}>
-              No active subscriptions. Visit the Marketplace to subscribe to AI models.
-            </Text>
-          </Card>
-        )}
+          <div style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+            Active Subscriptions
+          </div>
+        </Tile>
+        <Tile style={{ padding: '1.5rem' }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: 300, color: 'var(--text-primary)' }}>
+            {totalRequests.toLocaleString()}
+          </div>
+          <div style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+            API Requests
+          </div>
+        </Tile>
+        <Tile style={{ padding: '1.5rem' }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: 300, color: 'var(--text-primary)' }}>
+            {(totalInputTokens + totalOutputTokens).toLocaleString()}
+          </div>
+          <div style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+            Total Tokens
+          </div>
+        </Tile>
+        <Tile style={{ padding: '1.5rem' }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: 300, color: 'var(--text-primary)' }}>
+            ${totalCost.toFixed(2)}
+          </div>
+          <div style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+            Current Bill
+          </div>
+        </Tile>
       </div>
+
+      <h2 style={{ fontSize: '1.25rem', fontWeight: 400, marginBottom: '1rem' }}>
+        Active Subscriptions
+      </h2>
+      {subscriptions && subscriptions.length > 0 ? (
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          {subscriptions.map((sub: any) => (
+            <Tile key={sub.id} style={{ padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 500 }}>{sub.model?.name || 'Unknown Model'}</span>
+              <Tag type="green">Active</Tag>
+            </Tile>
+          ))}
+        </div>
+      ) : (
+        <Tile style={{ padding: '1.5rem', color: 'var(--text-secondary)' }}>
+          No active subscriptions. Visit the Marketplace to subscribe to AI models.
+        </Tile>
+      )}
     </div>
   );
 }

@@ -1,61 +1,25 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  makeStyles,
-  tokens,
-  Card,
-  Text,
+  Tile,
   Button,
-  Input,
-  Badge,
-  Dialog,
-  DialogTrigger,
-  DialogSurface,
-  DialogTitle,
-  DialogBody,
-  DialogActions,
-  DialogContent,
+  TextInput,
+  Tag,
+  Modal,
+  InlineNotification,
+  DataTable,
   Table,
-  TableHeader,
+  TableHead,
   TableRow,
-  TableHeaderCell,
+  TableHeader,
   TableBody,
   TableCell,
-  MessageBar,
-  MessageBarBody,
-} from '@fluentui/react-components';
-import { Add24Regular, Delete24Regular, Copy24Regular } from '@fluentui/react-icons';
+} from '@carbon/react';
+import { Add, TrashCan, Copy } from '@carbon/icons-react';
 import { authApi } from '../../services/api';
 import { APIKey } from '../../types';
 
-const useStyles = makeStyles({
-  card: {
-    padding: tokens.spacingVerticalXL,
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: tokens.spacingVerticalL,
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalM,
-  },
-  keyDisplay: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: tokens.spacingHorizontalS,
-    padding: tokens.spacingVerticalM,
-    backgroundColor: tokens.colorNeutralBackground3,
-    borderRadius: tokens.borderRadiusMedium,
-    fontFamily: 'monospace',
-  },
-});
-
 export default function APIKeysSettings() {
-  const styles = useStyles();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newKey, setNewKey] = useState({ name: '', scopes: ['read', 'write'] });
@@ -86,130 +50,140 @@ export default function APIKeysSettings() {
     navigator.clipboard.writeText(text);
   };
 
+  const headers = [
+    { key: 'name', header: 'Name' },
+    { key: 'key', header: 'Key' },
+    { key: 'status', header: 'Status' },
+    { key: 'lastUsed', header: 'Last Used' },
+    { key: 'actions', header: 'Actions' },
+  ];
+
+  const rows = apiKeys?.map(key => ({
+    id: key.id,
+    name: key.name,
+    key: `${key.key_prefix}...`,
+    status: key.is_active ? 'Active' : 'Revoked',
+    isActive: key.is_active,
+    lastUsed: key.last_used_at
+      ? new Date(key.last_used_at).toLocaleDateString()
+      : 'Never',
+  })) || [];
+
   return (
-    <Card className={styles.card}>
-      <div className={styles.header}>
+    <Tile style={{ padding: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
         <div>
-          <Text size={600} weight="semibold" block>API Keys</Text>
-          <Text style={{ color: tokens.colorNeutralForeground3 }}>
-            Manage API keys for programmatic access
-          </Text>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 400, marginBottom: '0.5rem' }}>API Keys</h2>
+          <p style={{ color: 'var(--text-secondary)' }}>Manage API keys for programmatic access</p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={(_, data) => {
-          setIsCreateOpen(data.open);
-          if (!data.open) setCreatedKey(null);
-        }}>
-          <DialogTrigger>
-            <Button appearance="primary" icon={<Add24Regular />}>
-              Create API Key
-            </Button>
-          </DialogTrigger>
-          <DialogSurface>
-            <DialogTitle>
-              {createdKey ? 'API Key Created' : 'Create API Key'}
-            </DialogTitle>
-            <DialogBody>
-              <DialogContent>
-                {createdKey ? (
-                  <div>
-                    <MessageBar intent="warning" style={{ marginBottom: tokens.spacingVerticalM }}>
-                      <MessageBarBody>
-                        Copy this key now. You won't be able to see it again!
-                      </MessageBarBody>
-                    </MessageBar>
-                    <div className={styles.keyDisplay}>
-                      <Text style={{ flex: 1, wordBreak: 'break-all' }}>{createdKey}</Text>
-                      <Button
-                        appearance="subtle"
-                        icon={<Copy24Regular />}
-                        onClick={() => copyToClipboard(createdKey)}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.form}>
-                    <Input
-                      placeholder="Key Name (e.g., Production API)"
-                      value={newKey.name}
-                      onChange={(e) => setNewKey({ ...newKey, name: e.target.value })}
-                    />
-                  </div>
-                )}
-              </DialogContent>
-            </DialogBody>
-            <DialogActions>
-              {createdKey ? (
-                <Button appearance="primary" onClick={() => {
-                  setIsCreateOpen(false);
-                  setCreatedKey(null);
-                }}>
-                  Done
-                </Button>
-              ) : (
-                <>
-                  <Button appearance="secondary" onClick={() => setIsCreateOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    appearance="primary"
-                    onClick={() => createMutation.mutate(newKey)}
-                    disabled={!newKey.name || createMutation.isPending}
-                  >
-                    Create
-                  </Button>
-                </>
-              )}
-            </DialogActions>
-          </DialogSurface>
-        </Dialog>
+        <Button kind="primary" renderIcon={Add} onClick={() => setIsCreateOpen(true)}>
+          Create API Key
+        </Button>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHeaderCell>Name</TableHeaderCell>
-            <TableHeaderCell>Key</TableHeaderCell>
-            <TableHeaderCell>Status</TableHeaderCell>
-            <TableHeaderCell>Last Used</TableHeaderCell>
-            <TableHeaderCell>Actions</TableHeaderCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {apiKeys?.map(key => (
-            <TableRow key={key.id}>
-              <TableCell>{key.name}</TableCell>
-              <TableCell>
-                <Text style={{ fontFamily: 'monospace' }}>{key.key_prefix}...</Text>
-              </TableCell>
-              <TableCell>
-                <Badge color={key.is_active ? 'success' : 'danger'}>
-                  {key.is_active ? 'Active' : 'Revoked'}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {key.last_used_at
-                  ? new Date(key.last_used_at).toLocaleDateString()
-                  : 'Never'}
-              </TableCell>
-              <TableCell>
-                {key.is_active && (
-                  <Button
-                    appearance="subtle"
-                    icon={<Delete24Regular />}
-                    onClick={() => revokeMutation.mutate(key.id)}
-                  />
-                )}
-              </TableCell>
+      {rows.length > 0 ? (
+        <Table>
+          <TableHead>
+            <TableRow>
+              {headers.map(header => (
+                <TableHeader key={header.key}>{header.header}</TableHeader>
+              ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-
-      {apiKeys?.length === 0 && (
-        <Text style={{ color: tokens.colorNeutralForeground3, textAlign: 'center', padding: tokens.spacingVerticalL }}>
+          </TableHead>
+          <TableBody>
+            {rows.map(row => (
+              <TableRow key={row.id}>
+                <TableCell>{row.name}</TableCell>
+                <TableCell style={{ fontFamily: 'monospace' }}>{row.key}</TableCell>
+                <TableCell>
+                  <Tag type={row.isActive ? 'green' : 'red'}>
+                    {row.status}
+                  </Tag>
+                </TableCell>
+                <TableCell>{row.lastUsed}</TableCell>
+                <TableCell>
+                  {row.isActive && (
+                    <Button
+                      kind="ghost"
+                      size="sm"
+                      renderIcon={TrashCan}
+                      hasIconOnly
+                      iconDescription="Revoke"
+                      onClick={() => revokeMutation.mutate(row.id)}
+                    />
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>
           No API keys yet. Create one to access the API programmatically.
-        </Text>
+        </p>
       )}
-    </Card>
+
+      <Modal
+        open={isCreateOpen}
+        onRequestClose={() => {
+          setIsCreateOpen(false);
+          setCreatedKey(null);
+        }}
+        onRequestSubmit={() => {
+          if (createdKey) {
+            setIsCreateOpen(false);
+            setCreatedKey(null);
+          } else {
+            createMutation.mutate(newKey);
+          }
+        }}
+        modalHeading={createdKey ? 'API Key Created' : 'Create API Key'}
+        primaryButtonText={createdKey ? 'Done' : 'Create'}
+        secondaryButtonText={createdKey ? undefined : 'Cancel'}
+        primaryButtonDisabled={!createdKey && (!newKey.name || createMutation.isPending)}
+      >
+        <div style={{ marginTop: '1rem' }}>
+          {createdKey ? (
+            <>
+              <InlineNotification
+                kind="warning"
+                title="Important"
+                subtitle="Copy this key now. You won't be able to see it again!"
+                lowContrast
+                hideCloseButton
+                style={{ marginBottom: '1rem' }}
+              />
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '1rem',
+                backgroundColor: 'var(--bg-primary)',
+                fontFamily: 'monospace',
+                wordBreak: 'break-all',
+              }}>
+                <span style={{ flex: 1 }}>{createdKey}</span>
+                <Button
+                  kind="ghost"
+                  size="sm"
+                  renderIcon={Copy}
+                  hasIconOnly
+                  iconDescription="Copy"
+                  onClick={() => copyToClipboard(createdKey)}
+                />
+              </div>
+            </>
+          ) : (
+            <TextInput
+              id="key-name"
+              labelText="Key Name"
+              placeholder="e.g., Production API"
+              value={newKey.name}
+              onChange={(e) => setNewKey({ ...newKey, name: e.target.value })}
+            />
+          )}
+        </div>
+      </Modal>
+    </Tile>
   );
 }

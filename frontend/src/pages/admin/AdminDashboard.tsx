@@ -1,84 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import {
-  makeStyles,
-  tokens,
-  Card,
-  Text,
-  Button,
-  Spinner,
-} from '@fluentui/react-components';
-import {
-  Organization24Regular,
-  People24Regular,
-  Bot24Regular,
-  Payment24Regular,
-  ArrowRight24Regular,
-} from '@fluentui/react-icons';
+import { Tile, ClickableTile, Loading } from '@carbon/react';
+import { Enterprise, UserMultiple, Bot, Wallet, ArrowRight } from '@carbon/icons-react';
 import { adminApi } from '../../services/api';
 
-const useStyles = makeStyles({
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalXL,
-  },
-  header: {
-    marginBottom: tokens.spacingVerticalM,
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: tokens.spacingHorizontalL,
-  },
-  statCard: {
-    padding: tokens.spacingVerticalL,
-    cursor: 'pointer',
-    transition: 'box-shadow 0.2s ease',
-    '&:hover': {
-      boxShadow: tokens.shadow16,
-    },
-  },
-  statContent: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: tokens.spacingHorizontalM,
-  },
-  statIcon: {
-    padding: tokens.spacingVerticalM,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorBrandBackground2,
-    color: tokens.colorBrandForeground1,
-  },
-  statValue: {
-    fontSize: tokens.fontSizeHero900,
-    fontWeight: tokens.fontWeightSemibold,
-    lineHeight: '1',
-  },
-  statLabel: {
-    color: tokens.colorNeutralForeground3,
-    fontSize: tokens.fontSizeBase200,
-  },
-  quickActions: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: tokens.spacingHorizontalL,
-    marginTop: tokens.spacingVerticalL,
-  },
-  actionCard: {
-    padding: tokens.spacingVerticalL,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    '&:hover': {
-      boxShadow: tokens.shadow8,
-    },
-  },
-});
-
 export default function AdminDashboard() {
-  const styles = useStyles();
   const navigate = useNavigate();
 
   const { data: stats, isLoading } = useQuery({
@@ -88,33 +14,33 @@ export default function AdminDashboard() {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-        <Spinner size="large" label="Loading admin dashboard..." />
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+        <Loading description="Loading admin dashboard..." withOverlay={false} />
       </div>
     );
   }
 
   const statCards = [
     {
-      icon: <Organization24Regular />,
+      icon: Enterprise,
       value: stats?.organizations || 0,
       label: 'Organizations',
       path: '/admin/organizations',
     },
     {
-      icon: <People24Regular />,
+      icon: UserMultiple,
       value: stats?.users || 0,
       label: 'Total Users',
       path: '/admin/organizations',
     },
     {
-      icon: <Bot24Regular />,
+      icon: Bot,
       value: stats?.models || 0,
       label: 'Active Models',
       path: '/admin/models',
     },
     {
-      icon: <Payment24Regular />,
+      icon: Wallet,
       value: `$${(stats?.total_revenue || 0).toFixed(2)}`,
       label: 'Total Revenue',
       path: '/admin/organizations',
@@ -127,74 +53,76 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <Text size={700} weight="semibold" block>Platform Admin</Text>
-        <Text style={{ color: tokens.colorNeutralForeground3 }}>
-          Manage your AI model marketplace
-        </Text>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <div>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 400, marginBottom: '0.5rem' }}>Platform Admin</h1>
+        <p style={{ color: 'var(--text-secondary)' }}>Manage your AI model marketplace</p>
       </div>
 
-      <div className={styles.statsGrid}>
-        {statCards.map((stat, index) => (
-          <Card
-            key={index}
-            className={styles.statCard}
-            onClick={() => navigate(stat.path)}
-          >
-            <div className={styles.statContent}>
-              <div className={styles.statIcon}>{stat.icon}</div>
-              <div>
-                <Text className={styles.statValue}>{stat.value}</Text>
-                <Text className={styles.statLabel} block>{stat.label}</Text>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+        {statCards.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <ClickableTile
+              key={index}
+              onClick={() => navigate(stat.path)}
+              style={{ padding: '1.5rem' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--bg-tertiary)',
+                  color: 'var(--brand-primary)',
+                }}>
+                  <Icon size={24} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '2rem', fontWeight: 300, lineHeight: 1 }}>{stat.value}</div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.25rem' }}>{stat.label}</div>
+                </div>
               </div>
-            </div>
-          </Card>
-        ))}
+            </ClickableTile>
+          );
+        })}
       </div>
 
       <div>
-        <Text size={500} weight="semibold" block style={{ marginBottom: tokens.spacingVerticalM }}>
-          Quick Actions
-        </Text>
-        <div className={styles.quickActions}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>Quick Actions</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
           {quickActions.map((action, index) => (
-            <Card
+            <ClickableTile
               key={index}
-              className={styles.actionCard}
               onClick={() => navigate(action.path)}
+              style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
             >
               <div>
-                <Text weight="semibold" block>{action.label}</Text>
-                <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
-                  {action.description}
-                </Text>
+                <div style={{ fontWeight: 600 }}>{action.label}</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{action.description}</div>
               </div>
-              <ArrowRight24Regular />
-            </Card>
+              <ArrowRight size={20} />
+            </ClickableTile>
           ))}
         </div>
       </div>
 
-      <Card style={{ padding: tokens.spacingVerticalL }}>
-        <Text size={500} weight="semibold" block style={{ marginBottom: tokens.spacingVerticalM }}>
-          Platform Statistics
-        </Text>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: tokens.spacingHorizontalXL }}>
+      <Tile style={{ padding: '1.5rem' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>Platform Statistics</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
           <div>
-            <Text size={200} style={{ color: tokens.colorNeutralForeground3 }} block>Total Tokens</Text>
-            <Text size={500} weight="semibold">{(stats?.total_tokens || 0).toLocaleString()}</Text>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Total Tokens</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{(stats?.total_tokens || 0).toLocaleString()}</div>
           </div>
           <div>
-            <Text size={200} style={{ color: tokens.colorNeutralForeground3 }} block>Total Requests</Text>
-            <Text size={500} weight="semibold">{(stats?.total_requests || 0).toLocaleString()}</Text>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Total Requests</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{(stats?.total_requests || 0).toLocaleString()}</div>
           </div>
           <div>
-            <Text size={200} style={{ color: tokens.colorNeutralForeground3 }} block>Active Subscriptions</Text>
-            <Text size={500} weight="semibold">{stats?.active_subscriptions || 0}</Text>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Active Subscriptions</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{stats?.active_subscriptions || 0}</div>
           </div>
         </div>
-      </Card>
+      </Tile>
     </div>
   );
 }

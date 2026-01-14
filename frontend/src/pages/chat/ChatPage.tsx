@@ -1,98 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import {
-  makeStyles,
-  tokens,
-  Card,
-  Text,
-  Input,
+  Tile,
+  TextInput,
   Button,
-  Spinner,
+  Loading,
   Dropdown,
-  Option,
-  Avatar,
-} from '@fluentui/react-components';
-import { Send24Regular, Bot24Regular } from '@fluentui/react-icons';
+} from '@carbon/react';
+import { SendAlt, Bot } from '@carbon/icons-react';
 import { modelsApi, chatApi, subscriptionsApi } from '../../services/api';
-import { AIModel, ChatMessage, SubscriptionWithUsage } from '../../types';
-
-const useStyles = makeStyles({
-  container: {
-    display: 'flex',
-    height: 'calc(100vh - 120px)',
-    gap: tokens.spacingHorizontalL,
-  },
-  sidebar: {
-    width: '280px',
-    flexShrink: 0,
-  },
-  sidebarCard: {
-    height: '100%',
-    padding: tokens.spacingVerticalM,
-  },
-  chatArea: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  chatCard: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-  },
-  messages: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: tokens.spacingVerticalL,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalM,
-  },
-  message: {
-    display: 'flex',
-    gap: tokens.spacingHorizontalM,
-    maxWidth: '80%',
-  },
-  userMessage: {
-    alignSelf: 'flex-end',
-    flexDirection: 'row-reverse',
-  },
-  assistantMessage: {
-    alignSelf: 'flex-start',
-  },
-  messageBubble: {
-    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusLarge,
-    maxWidth: '100%',
-  },
-  userBubble: {
-    backgroundColor: tokens.colorBrandBackground,
-    color: tokens.colorNeutralForegroundOnBrand,
-  },
-  assistantBubble: {
-    backgroundColor: tokens.colorNeutralBackground3,
-  },
-  inputArea: {
-    display: 'flex',
-    gap: tokens.spacingHorizontalM,
-    padding: tokens.spacingVerticalM,
-    borderTop: `1px solid ${tokens.colorNeutralStroke1}`,
-  },
-  input: {
-    flex: 1,
-  },
-  emptyState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    gap: tokens.spacingVerticalM,
-    color: tokens.colorNeutralForeground3,
-  },
-});
+import { AIModel, SubscriptionWithUsage } from '../../types';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -100,7 +18,6 @@ interface Message {
 }
 
 export default function ChatPage() {
-  const styles = useStyles();
   const [searchParams] = useSearchParams();
   const initialModelId = searchParams.get('model');
 
@@ -124,6 +41,7 @@ export default function ChatPage() {
     subscriptions?.some(s => s.model_id === m.id) || !m.pricing?.monthly_subscription_price
   );
 
+  const modelItems = availableModels?.map(m => ({ id: m.id, text: m.name })) || [];
   const selectedModel = availableModels?.find(m => m.id === selectedModelId);
 
   const scrollToBottom = () => {
@@ -174,100 +92,124 @@ export default function ChatPage() {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.sidebar}>
-        <Card className={styles.sidebarCard}>
-          <Text size={400} weight="semibold" block style={{ marginBottom: tokens.spacingVerticalM }}>
-            Select Model
-          </Text>
+    <div style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: '1.5rem' }}>
+      {/* Sidebar */}
+      <div style={{ width: '280px', flexShrink: 0 }}>
+        <Tile style={{ height: '100%', padding: '1rem' }}>
+          <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '1rem' }}>Select Model</h3>
           <Dropdown
-            placeholder="Choose a model"
-            value={selectedModel?.name}
-            onOptionSelect={(_, data) => setSelectedModelId(data.optionValue as string)}
-          >
-            {availableModels?.map(model => (
-              <Option key={model.id} value={model.id}>
-                {model.name}
-              </Option>
-            ))}
-          </Dropdown>
+            id="model-select"
+            titleText=""
+            label="Choose a model"
+            items={modelItems}
+            itemToString={(item) => item?.text || ''}
+            selectedItem={modelItems.find(m => m.id === selectedModelId)}
+            onChange={({ selectedItem }) => setSelectedModelId(selectedItem?.id || null)}
+          />
 
           {selectedModel && (
-            <div style={{ marginTop: tokens.spacingVerticalL }}>
-              <Text size={300} weight="semibold" block>Model Info</Text>
-              <Text size={200} block style={{ marginTop: tokens.spacingVerticalS, color: tokens.colorNeutralForeground3 }}>
+            <div style={{ marginTop: '1.5rem' }}>
+              <h4 style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem' }}>Model Info</h4>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                 {selectedModel.description || 'No description'}
-              </Text>
-              <Text size={200} block style={{ marginTop: tokens.spacingVerticalS }}>
-                Provider: {selectedModel.provider}
-              </Text>
-              <Text size={200} block>
-                Category: {selectedModel.category.replace('_', ' ')}
-              </Text>
+              </p>
+              <p style={{ fontSize: '0.75rem' }}>Provider: {selectedModel.provider}</p>
+              <p style={{ fontSize: '0.75rem' }}>Category: {selectedModel.category.replace('_', ' ')}</p>
             </div>
           )}
-        </Card>
+        </Tile>
       </div>
 
-      <div className={styles.chatArea}>
-        <Card className={styles.chatCard}>
+      {/* Chat Area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Tile style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 }}>
           {!selectedModelId ? (
-            <div className={styles.emptyState}>
-              <Bot24Regular style={{ fontSize: '48px' }} />
-              <Text size={400}>Select a model to start chatting</Text>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-secondary)' }}>
+              <Bot size={48} />
+              <p style={{ marginTop: '1rem' }}>Select a model to start chatting</p>
             </div>
           ) : (
             <>
-              <div className={styles.messages}>
+              {/* Messages */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {messages.length === 0 ? (
-                  <div className={styles.emptyState}>
-                    <Bot24Regular style={{ fontSize: '48px' }} />
-                    <Text size={400}>Start a conversation with {selectedModel?.name}</Text>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-secondary)' }}>
+                    <Bot size={48} />
+                    <p style={{ marginTop: '1rem' }}>Start a conversation with {selectedModel?.name}</p>
                   </div>
                 ) : (
                   messages.map((message, index) => (
                     <div
                       key={index}
-                      className={`${styles.message} ${
-                        message.role === 'user' ? styles.userMessage : styles.assistantMessage
-                      }`}
+                      style={{
+                        display: 'flex',
+                        gap: '0.75rem',
+                        maxWidth: '80%',
+                        alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
+                        flexDirection: message.role === 'user' ? 'row-reverse' : 'row',
+                      }}
                     >
                       {message.role === 'assistant' && (
-                        <Avatar icon={<Bot24Regular />} color="brand" size={32} />
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          backgroundColor: 'var(--brand-primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}>
+                          <Bot size={16} style={{ color: 'var(--white)' }} />
+                        </div>
                       )}
-                      <div
-                        className={`${styles.messageBubble} ${
-                          message.role === 'user' ? styles.userBubble : styles.assistantBubble
-                        }`}
-                      >
-                        <Text style={{ whiteSpace: 'pre-wrap' }}>{message.content}</Text>
+                      <div style={{
+                        padding: '0.75rem 1rem',
+                        borderRadius: '1rem',
+                        backgroundColor: message.role === 'user' ? 'var(--brand-primary)' : 'var(--border-subtle)',
+                        color: message.role === 'user' ? 'var(--white)' : 'var(--text-primary)',
+                      }}>
+                        <span style={{ whiteSpace: 'pre-wrap' }}>{message.content}</span>
                       </div>
                     </div>
                   ))
                 )}
                 {isStreaming && (
-                  <div className={`${styles.message} ${styles.assistantMessage}`}>
-                    <Avatar icon={<Bot24Regular />} color="brand" size={32} />
-                    <div className={`${styles.messageBubble} ${styles.assistantBubble}`}>
-                      <Spinner size="tiny" />
+                  <div style={{ display: 'flex', gap: '0.75rem', alignSelf: 'flex-start' }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--brand-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <Bot size={16} style={{ color: 'var(--white)' }} />
+                    </div>
+                    <div style={{ padding: '0.75rem 1rem', borderRadius: '1rem', backgroundColor: 'var(--border-subtle)' }}>
+                      <Loading small withOverlay={false} />
                     </div>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
 
-              <div className={styles.inputArea}>
-                <Input
-                  className={styles.input}
+              {/* Input */}
+              <div style={{ display: 'flex', gap: '0.75rem', padding: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
+                <TextInput
+                  id="chat-input"
+                  labelText=""
                   placeholder="Type your message..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
                   disabled={isStreaming}
+                  style={{ flex: 1 }}
                 />
                 <Button
-                  appearance="primary"
-                  icon={<Send24Regular />}
+                  kind="primary"
+                  renderIcon={SendAlt}
                   onClick={sendMessage}
                   disabled={!input.trim() || isStreaming}
                 >
@@ -276,7 +218,7 @@ export default function ChatPage() {
               </div>
             </>
           )}
-        </Card>
+        </Tile>
       </div>
     </div>
   );

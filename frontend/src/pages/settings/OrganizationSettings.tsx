@@ -1,47 +1,16 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  makeStyles,
-  tokens,
-  Card,
-  Text,
-  Input,
+  Tile,
+  TextInput,
   Button,
-  Badge,
-  MessageBar,
-  MessageBarBody,
-} from '@fluentui/react-components';
+  Tag,
+  InlineNotification,
+} from '@carbon/react';
 import { useAuthStore } from '../../stores/authStore';
 import { organizationsApi } from '../../services/api';
 
-const useStyles = makeStyles({
-  card: {
-    padding: tokens.spacingVerticalXL,
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalL,
-    maxWidth: '400px',
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalXS,
-  },
-  planSection: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: tokens.spacingHorizontalM,
-    padding: tokens.spacingVerticalM,
-    backgroundColor: tokens.colorNeutralBackground3,
-    borderRadius: tokens.borderRadiusMedium,
-    marginBottom: tokens.spacingVerticalL,
-  },
-});
-
 export default function OrganizationSettings() {
-  const styles = useStyles();
   const queryClient = useQueryClient();
   const { organization, fetchUser } = useAuthStore();
   const [formData, setFormData] = useState({
@@ -63,64 +32,76 @@ export default function OrganizationSettings() {
     setFormData({ ...formData, [field]: e.target.value });
   };
 
-  const getPlanBadgeColor = (plan: string) => {
-    const colors: Record<string, 'informative' | 'success' | 'warning' | 'brand'> = {
-      free: 'informative',
-      starter: 'success',
-      pro: 'warning',
-      enterprise: 'brand',
+  const getPlanColor = (plan: string): 'blue' | 'green' | 'magenta' | 'purple' => {
+    const colors: Record<string, 'blue' | 'green' | 'magenta' | 'purple'> = {
+      free: 'blue',
+      starter: 'green',
+      pro: 'magenta',
+      enterprise: 'purple',
     };
-    return colors[plan] || 'informative';
+    return colors[plan] || 'blue';
   };
 
   return (
-    <Card className={styles.card}>
-      <Text size={600} weight="semibold" block style={{ marginBottom: tokens.spacingVerticalL }}>
+    <Tile style={{ padding: '2rem' }}>
+      <h2 style={{ fontSize: '1.25rem', fontWeight: 400, marginBottom: '1.5rem' }}>
         Organization Settings
-      </Text>
+      </h2>
 
-      <div className={styles.planSection}>
-        <Text weight="semibold">Current Plan:</Text>
-        <Badge color={getPlanBadgeColor(organization?.plan || 'free')} size="large">
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1rem',
+        padding: '1rem',
+        backgroundColor: 'var(--bg-primary)',
+        marginBottom: '1.5rem',
+      }}>
+        <span style={{ fontWeight: 600 }}>Current Plan:</span>
+        <Tag type={getPlanColor(organization?.plan || 'free')} size="md">
           {organization?.plan?.toUpperCase()}
-        </Badge>
-        <Button appearance="outline" size="small">Upgrade</Button>
+        </Tag>
+        <Button kind="tertiary" size="sm">Upgrade</Button>
       </div>
 
       {success && (
-        <MessageBar intent="success" style={{ marginBottom: tokens.spacingVerticalM }}>
-          <MessageBarBody>Settings saved successfully!</MessageBarBody>
-        </MessageBar>
+        <InlineNotification
+          kind="success"
+          title="Success"
+          subtitle="Settings saved successfully!"
+          lowContrast
+          hideCloseButton
+          style={{ marginBottom: '1rem' }}
+        />
       )}
 
-      <div className={styles.form}>
-        <div className={styles.field}>
-          <Text weight="semibold">Organization Name</Text>
-          <Input
-            value={formData.name}
-            onChange={handleChange('name')}
-          />
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '400px' }}>
+        <TextInput
+          id="org_name"
+          labelText="Organization Name"
+          value={formData.name}
+          onChange={handleChange('name')}
+        />
 
-        <div className={styles.field}>
-          <Text weight="semibold">Slug</Text>
-          <Input
+        <div>
+          <TextInput
+            id="org_slug"
+            labelText="Slug"
             value={formData.slug}
             onChange={handleChange('slug')}
           />
-          <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
             Used in URLs and API calls
-          </Text>
+          </p>
         </div>
 
         <Button
-          appearance="primary"
+          kind="primary"
           onClick={() => updateMutation.mutate(formData)}
           disabled={updateMutation.isPending}
         >
           Save Changes
         </Button>
       </div>
-    </Card>
+    </Tile>
   );
 }

@@ -1,56 +1,15 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  makeStyles,
-  tokens,
-  Card,
-  CardHeader,
-  Text,
-  Input,
+  Tile,
+  TextInput,
   Button,
-  Spinner,
-  MessageBar,
-  MessageBarBody,
-} from '@fluentui/react-components';
+  InlineLoading,
+  InlineNotification,
+} from '@carbon/react';
 import { useAuthStore } from '../stores/authStore';
 
-const useStyles = makeStyles({
-  container: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '100vh',
-    backgroundColor: tokens.colorNeutralBackground2,
-  },
-  card: {
-    width: '100%',
-    maxWidth: '400px',
-    padding: tokens.spacingVerticalXL,
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalM,
-  },
-  title: {
-    textAlign: 'center',
-    marginBottom: tokens.spacingVerticalL,
-  },
-  footer: {
-    textAlign: 'center',
-    marginTop: tokens.spacingVerticalM,
-  },
-  link: {
-    color: tokens.colorBrandForeground1,
-    textDecoration: 'none',
-    '&:hover': {
-      textDecoration: 'underline',
-    },
-  },
-});
-
 export default function RegisterPage() {
-  const styles = useStyles();
   const navigate = useNavigate();
   const { register, isLoading } = useAuthStore();
   const [formData, setFormData] = useState({
@@ -80,72 +39,86 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className={styles.container}>
-      <Card className={styles.card}>
-        <CardHeader
-          header={
-            <div className={styles.title}>
-              <Text size={600} weight="semibold">
-                Create an Account
-              </Text>
-              <Text size={300} block>
-                Get started with Virtus AI
-              </Text>
-            </div>
-          }
-        />
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '100vh',
+      backgroundColor: 'var(--bg-primary)',
+    }}>
+      <Tile style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+            Create an Account
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            Get started with Virtus AI
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} className={styles.form}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {error && (
-            <MessageBar intent="error">
-              <MessageBarBody>{error}</MessageBarBody>
-            </MessageBar>
+            <InlineNotification
+              kind="error"
+              title="Error"
+              subtitle={error}
+              lowContrast
+              hideCloseButton
+            />
           )}
 
-          <Input
-            placeholder="Full Name"
+          <TextInput
+            id="full_name"
+            labelText="Full Name"
+            placeholder="Enter your full name"
             value={formData.full_name}
             onChange={handleChange('full_name')}
             required
           />
 
-          <Input
+          <TextInput
+            id="email"
             type="email"
-            placeholder="Email"
+            labelText="Email"
+            placeholder="Enter your email"
             value={formData.email}
             onChange={handleChange('email')}
             required
           />
 
-          <Input
+          <TextInput
+            id="password"
             type="password"
-            placeholder="Password"
+            labelText="Password"
+            placeholder="Choose a password"
             value={formData.password}
             onChange={handleChange('password')}
             required
           />
 
-          <Input
-            placeholder="Organization Name"
+          <TextInput
+            id="organization_name"
+            labelText="Organization Name"
+            placeholder="Enter your organization name"
             value={formData.organization_name}
             onChange={handleChange('organization_name')}
             required
           />
 
-          <Button appearance="primary" type="submit" disabled={isLoading}>
-            {isLoading ? <Spinner size="tiny" /> : 'Create Account'}
+          <Button type="submit" disabled={isLoading} style={{ width: '100%' }}>
+            {isLoading ? <InlineLoading description="Creating account..." /> : 'Create Account'}
           </Button>
         </form>
 
-        <div className={styles.footer}>
-          <Text>
+        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+          <p style={{ fontSize: '0.875rem' }}>
             Already have an account?{' '}
-            <Link to="/login" className={styles.link}>
+            <Link to="/login" style={{ color: 'var(--brand-primary)' }}>
               Sign in
             </Link>
-          </Text>
+          </p>
         </div>
-      </Card>
+      </Tile>
     </div>
   );
 }

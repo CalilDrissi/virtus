@@ -1,42 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
 import {
-  makeStyles,
-  tokens,
-  Card,
-  Text,
-  Badge,
-  Spinner,
+  Tile,
+  TextInput,
+  Tag,
+  Loading,
   Table,
-  TableHeader,
+  TableHead,
   TableRow,
-  TableHeaderCell,
+  TableHeader,
   TableBody,
   TableCell,
-  Input,
-} from '@fluentui/react-components';
-import { Search24Regular } from '@fluentui/react-icons';
+} from '@carbon/react';
+import { Search } from '@carbon/icons-react';
 import { useState } from 'react';
 import { adminApi } from '../../services/api';
 import { OrganizationWithStats } from '../../types';
 
-const useStyles = makeStyles({
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalL,
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  searchInput: {
-    minWidth: '300px',
-  },
-});
-
 export default function AdminOrganizations() {
-  const styles = useStyles();
   const [search, setSearch] = useState('');
 
   const { data: organizations, isLoading } = useQuery<OrganizationWithStats[]>({
@@ -49,92 +29,78 @@ export default function AdminOrganizations() {
     org.slug.toLowerCase().includes(search.toLowerCase())
   );
 
-  const getPlanBadgeColor = (plan: string) => {
-    const colors: Record<string, 'informative' | 'success' | 'warning' | 'brand'> = {
-      free: 'informative',
-      starter: 'success',
-      pro: 'warning',
-      enterprise: 'brand',
+  const getPlanColor = (plan: string): 'blue' | 'green' | 'magenta' | 'purple' => {
+    const colors: Record<string, 'blue' | 'green' | 'magenta' | 'purple'> = {
+      free: 'blue',
+      starter: 'green',
+      pro: 'magenta',
+      enterprise: 'purple',
     };
-    return colors[plan] || 'informative';
+    return colors[plan] || 'blue';
   };
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-        <Spinner size="large" label="Loading organizations..." />
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+        <Loading description="Loading organizations..." withOverlay={false} />
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <Text size={700} weight="semibold" block>Organizations</Text>
-          <Text style={{ color: tokens.colorNeutralForeground3 }}>
-            Manage tenant organizations and their subscriptions
-          </Text>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 400, marginBottom: '0.5rem' }}>Organizations</h1>
+          <p style={{ color: 'var(--text-secondary)' }}>Manage tenant organizations and their subscriptions</p>
         </div>
-        <Input
-          className={styles.searchInput}
-          contentBefore={<Search24Regular />}
+        <TextInput
+          id="search"
+          labelText=""
           placeholder="Search organizations..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          style={{ minWidth: '280px' }}
         />
       </div>
 
-      <Card style={{ padding: tokens.spacingVerticalL }}>
+      <Tile style={{ padding: '1.5rem' }}>
         <Table>
-          <TableHeader>
+          <TableHead>
             <TableRow>
-              <TableHeaderCell>Organization</TableHeaderCell>
-              <TableHeaderCell>Plan</TableHeaderCell>
-              <TableHeaderCell>Users</TableHeaderCell>
-              <TableHeaderCell>Subscriptions</TableHeaderCell>
-              <TableHeaderCell>Token Usage</TableHeaderCell>
-              <TableHeaderCell>Created</TableHeaderCell>
+              <TableHeader>Organization</TableHeader>
+              <TableHeader>Plan</TableHeader>
+              <TableHeader>Users</TableHeader>
+              <TableHeader>Subscriptions</TableHeader>
+              <TableHeader>Token Usage</TableHeader>
+              <TableHeader>Created</TableHeader>
             </TableRow>
-          </TableHeader>
+          </TableHead>
           <TableBody>
             {filteredOrgs?.map(org => (
               <TableRow key={org.id}>
                 <TableCell>
-                  <Text weight="semibold" block>{org.name}</Text>
-                  <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
-                    {org.slug}
-                  </Text>
+                  <div style={{ fontWeight: 600 }}>{org.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{org.slug}</div>
                 </TableCell>
                 <TableCell>
-                  <Badge color={getPlanBadgeColor(org.plan)}>
-                    {org.plan.toUpperCase()}
-                  </Badge>
+                  <Tag type={getPlanColor(org.plan)}>{org.plan.toUpperCase()}</Tag>
                 </TableCell>
                 <TableCell>{org.user_count}</TableCell>
                 <TableCell>{org.subscription_count}</TableCell>
                 <TableCell>{org.total_usage_tokens.toLocaleString()}</TableCell>
-                <TableCell>
-                  {new Date(org.created_at).toLocaleDateString()}
-                </TableCell>
+                <TableCell>{new Date(org.created_at).toLocaleDateString()}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
 
         {filteredOrgs?.length === 0 && (
-          <Text
-            style={{
-              color: tokens.colorNeutralForeground3,
-              textAlign: 'center',
-              padding: tokens.spacingVerticalL,
-              display: 'block',
-            }}
-          >
+          <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>
             No organizations found.
-          </Text>
+          </p>
         )}
-      </Card>
+      </Tile>
     </div>
   );
 }

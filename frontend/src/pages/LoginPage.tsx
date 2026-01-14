@@ -1,56 +1,15 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  makeStyles,
-  tokens,
-  Card,
-  CardHeader,
-  Text,
-  Input,
+  Tile,
+  TextInput,
   Button,
-  Spinner,
-  MessageBar,
-  MessageBarBody,
-} from '@fluentui/react-components';
+  InlineLoading,
+  InlineNotification,
+} from '@carbon/react';
 import { useAuthStore } from '../stores/authStore';
 
-const useStyles = makeStyles({
-  container: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '100vh',
-    backgroundColor: tokens.colorNeutralBackground2,
-  },
-  card: {
-    width: '100%',
-    maxWidth: '400px',
-    padding: tokens.spacingVerticalXL,
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalM,
-  },
-  title: {
-    textAlign: 'center',
-    marginBottom: tokens.spacingVerticalL,
-  },
-  footer: {
-    textAlign: 'center',
-    marginTop: tokens.spacingVerticalM,
-  },
-  link: {
-    color: tokens.colorBrandForeground1,
-    textDecoration: 'none',
-    '&:hover': {
-      textDecoration: 'underline',
-    },
-  },
-});
-
 export default function LoginPage() {
-  const styles = useStyles();
   const navigate = useNavigate();
   const { login, isLoading } = useAuthStore();
   const [email, setEmail] = useState('');
@@ -72,58 +31,68 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={styles.container}>
-      <Card className={styles.card}>
-        <CardHeader
-          header={
-            <div className={styles.title}>
-              <Text size={600} weight="semibold">
-                Welcome to Virtus AI
-              </Text>
-              <Text size={300} block>
-                Sign in to your account
-              </Text>
-            </div>
-          }
-        />
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '100vh',
+      backgroundColor: 'var(--bg-primary)',
+    }}>
+      <Tile style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+            Welcome to Virtus AI
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            Sign in to your account
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} className={styles.form}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {error && (
-            <MessageBar intent="error">
-              <MessageBarBody>{error}</MessageBarBody>
-            </MessageBar>
+            <InlineNotification
+              kind="error"
+              title="Error"
+              subtitle={error}
+              lowContrast
+              hideCloseButton
+            />
           )}
 
-          <Input
+          <TextInput
+            id="email"
             type="email"
-            placeholder="Email"
+            labelText="Email"
+            placeholder="Enter your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
 
-          <Input
+          <TextInput
+            id="password"
             type="password"
-            placeholder="Password"
+            labelText="Password"
+            placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
 
-          <Button appearance="primary" type="submit" disabled={isLoading}>
-            {isLoading ? <Spinner size="tiny" /> : 'Sign In'}
+          <Button type="submit" disabled={isLoading} style={{ width: '100%' }}>
+            {isLoading ? <InlineLoading description="Signing in..." /> : 'Sign In'}
           </Button>
         </form>
 
-        <div className={styles.footer}>
-          <Text>
+        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+          <p style={{ fontSize: '0.875rem' }}>
             Don't have an account?{' '}
-            <Link to="/register" className={styles.link}>
+            <Link to="/register" style={{ color: 'var(--brand-primary)' }}>
               Sign up
             </Link>
-          </Text>
+          </p>
         </div>
-      </Card>
+      </Tile>
     </div>
   );
 }

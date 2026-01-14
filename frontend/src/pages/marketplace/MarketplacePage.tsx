@@ -1,108 +1,31 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
-  makeStyles,
-  tokens,
-  Card,
-  Text,
-  Spinner,
-  Badge,
+  Tile,
+  ClickableTile,
+  Loading,
+  Tag,
   Button,
-  Input,
+  TextInput,
   Dropdown,
-  Option,
-} from '@fluentui/react-components';
-import { Search24Regular } from '@fluentui/react-icons';
+} from '@carbon/react';
+import { Search } from '@carbon/icons-react';
 import { useState } from 'react';
 import { modelsApi } from '../../services/api';
 import { AIModel } from '../../types';
 
-const useStyles = makeStyles({
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalL,
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: tokens.spacingHorizontalM,
-  },
-  filters: {
-    display: 'flex',
-    gap: tokens.spacingHorizontalM,
-    flexWrap: 'wrap',
-  },
-  searchInput: {
-    minWidth: '300px',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-    gap: tokens.spacingHorizontalL,
-  },
-  card: {
-    padding: tokens.spacingVerticalL,
-    cursor: 'pointer',
-    transition: 'box-shadow 0.2s ease',
-    '&:hover': {
-      boxShadow: tokens.shadow16,
-    },
-  },
-  cardHeader: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: tokens.spacingVerticalM,
-  },
-  modelIcon: {
-    width: '48px',
-    height: '48px',
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorBrandBackground2,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: tokens.fontSizeBase600,
-    fontWeight: tokens.fontWeightSemibold,
-    color: tokens.colorBrandForeground1,
-  },
-  modelName: {
-    marginBottom: tokens.spacingVerticalXS,
-  },
-  description: {
-    color: tokens.colorNeutralForeground3,
-    display: '-webkit-box',
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: 'vertical',
-    overflow: 'hidden',
-    marginBottom: tokens.spacingVerticalM,
-  },
-  pricing: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 'auto',
-    paddingTop: tokens.spacingVerticalM,
-    borderTop: `1px solid ${tokens.colorNeutralStroke1}`,
-  },
-});
-
 const categories = [
-  { value: '', label: 'All Categories' },
-  { value: 'legal', label: 'Legal' },
-  { value: 'healthcare', label: 'Healthcare' },
-  { value: 'ecommerce', label: 'E-Commerce' },
-  { value: 'customer_support', label: 'Customer Support' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'education', label: 'Education' },
-  { value: 'general', label: 'General' },
+  { id: '', text: 'All Categories' },
+  { id: 'legal', text: 'Legal' },
+  { id: 'healthcare', text: 'Healthcare' },
+  { id: 'ecommerce', text: 'E-Commerce' },
+  { id: 'customer_support', text: 'Customer Support' },
+  { id: 'finance', text: 'Finance' },
+  { id: 'education', text: 'Education' },
+  { id: 'general', text: 'General' },
 ];
 
 export default function MarketplacePage() {
-  const styles = useStyles();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
@@ -132,101 +55,112 @@ export default function MarketplacePage() {
     return 'Free';
   };
 
-  const getCategoryBadge = (cat: string) => {
-    const colors: Record<string, 'brand' | 'success' | 'warning' | 'danger' | 'informative'> = {
-      legal: 'brand',
-      healthcare: 'success',
-      ecommerce: 'warning',
-      customer_support: 'informative',
-      finance: 'brand',
-      education: 'success',
-      general: 'informative',
+  const getCategoryColor = (cat: string): 'blue' | 'green' | 'magenta' | 'purple' | 'teal' | 'cyan' => {
+    const colors: Record<string, 'blue' | 'green' | 'magenta' | 'purple' | 'teal' | 'cyan'> = {
+      legal: 'blue',
+      healthcare: 'green',
+      ecommerce: 'magenta',
+      customer_support: 'teal',
+      finance: 'purple',
+      education: 'cyan',
+      general: 'teal',
     };
-    return colors[cat] || 'informative';
+    return colors[cat] || 'teal';
   };
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-        <Spinner size="large" label="Loading models..." />
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+        <Loading description="Loading models..." withOverlay={false} />
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <Text size={700} weight="semibold" block>AI Model Marketplace</Text>
-          <Text style={{ color: tokens.colorNeutralForeground3 }}>
-            Browse and subscribe to specialized AI models
-          </Text>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 400, marginBottom: '0.5rem' }}>AI Model Marketplace</h1>
+          <p style={{ color: 'var(--text-secondary)' }}>Browse and subscribe to specialized AI models</p>
         </div>
-        <div className={styles.filters}>
-          <Input
-            className={styles.searchInput}
-            contentBefore={<Search24Regular />}
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <TextInput
+            id="search"
+            labelText=""
             placeholder="Search models..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            style={{ minWidth: '280px' }}
           />
           <Dropdown
-            placeholder="Category"
-            value={categories.find(c => c.value === category)?.label}
-            onOptionSelect={(_, data) => setCategory(data.optionValue as string)}
-          >
-            {categories.map(cat => (
-              <Option key={cat.value} value={cat.value}>{cat.label}</Option>
-            ))}
-          </Dropdown>
+            id="category"
+            titleText=""
+            label="Category"
+            items={categories}
+            itemToString={(item) => item?.text || ''}
+            selectedItem={categories.find(c => c.id === category)}
+            onChange={({ selectedItem }) => setCategory(selectedItem?.id || '')}
+          />
         </div>
       </div>
 
-      <div className={styles.grid}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
         {filteredModels?.map(model => (
-          <Card
+          <ClickableTile
             key={model.id}
-            className={styles.card}
             onClick={() => navigate(`/marketplace/${model.id}`)}
+            style={{ padding: '1.5rem' }}
           >
-            <div className={styles.cardHeader}>
-              <div className={styles.modelIcon}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.25rem',
+                fontWeight: 600,
+                color: 'var(--brand-primary)',
+              }}>
                 {model.icon_url ? (
-                  <img src={model.icon_url} alt={model.name} style={{ width: '100%', height: '100%' }} />
+                  <img src={model.icon_url} alt={model.name} style={{ width: '100%', height: '100%', borderRadius: '8px' }} />
                 ) : (
                   model.name.charAt(0).toUpperCase()
                 )}
               </div>
-              <Badge color={getCategoryBadge(model.category)} appearance="outline">
+              <Tag type={getCategoryColor(model.category)}>
                 {model.category.replace('_', ' ')}
-              </Badge>
+              </Tag>
             </div>
 
-            <Text size={500} weight="semibold" className={styles.modelName} block>
-              {model.name}
-            </Text>
-            <Text size={300} className={styles.description}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>{model.name}</h3>
+            <p style={{
+              color: 'var(--text-secondary)',
+              fontSize: '0.875rem',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              marginBottom: '1rem',
+              minHeight: '2.5rem',
+            }}>
               {model.description || 'No description available'}
-            </Text>
+            </p>
 
-            <div className={styles.pricing}>
-              <Text weight="semibold" style={{ color: tokens.colorBrandForeground1 }}>
-                {formatPrice(model)}
-              </Text>
-              <Button appearance="primary" size="small">
-                View Details
-              </Button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
+              <span style={{ fontWeight: 600, color: 'var(--brand-primary)' }}>{formatPrice(model)}</span>
+              <Button size="sm" kind="primary">View Details</Button>
             </div>
-          </Card>
+          </ClickableTile>
         ))}
       </div>
 
       {filteredModels?.length === 0 && (
-        <Card style={{ padding: tokens.spacingVerticalXL, textAlign: 'center' }}>
-          <Text style={{ color: tokens.colorNeutralForeground3 }}>
-            No models found matching your criteria.
-          </Text>
-        </Card>
+        <Tile style={{ padding: '2rem', textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-secondary)' }}>No models found matching your criteria.</p>
+        </Tile>
       )}
     </div>
   );

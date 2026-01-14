@@ -1,103 +1,65 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  makeStyles,
-  tokens,
-  Card,
-  Text,
+  Tile,
   Button,
-  Input,
+  TextInput,
+  TextArea,
   Dropdown,
-  Option,
-  Badge,
-  Dialog,
-  DialogTrigger,
-  DialogSurface,
-  DialogTitle,
-  DialogBody,
-  DialogActions,
-  DialogContent,
+  Tag,
+  Modal,
+  Toggle,
+  Loading,
   Table,
-  TableHeader,
+  TableHead,
   TableRow,
-  TableHeaderCell,
+  TableHeader,
   TableBody,
   TableCell,
-  Spinner,
-  Switch,
-  Textarea,
-} from '@fluentui/react-components';
-import { Add24Regular, Edit24Regular, Delete24Regular } from '@fluentui/react-icons';
+} from '@carbon/react';
+import { Add, Edit, TrashCan } from '@carbon/icons-react';
 import { modelsApi } from '../../services/api';
 import { AIModel } from '../../types';
 
-const useStyles = makeStyles({
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalL,
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalM,
-  },
-  formRow: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: tokens.spacingHorizontalM,
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalXS,
-  },
-});
-
-const providers = [
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'ollama', label: 'Ollama' },
-  { value: 'vllm', label: 'vLLM' },
-];
-
 const categories = [
-  { value: 'legal', label: 'Legal' },
-  { value: 'healthcare', label: 'Healthcare' },
-  { value: 'ecommerce', label: 'E-Commerce' },
-  { value: 'customer_support', label: 'Customer Support' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'education', label: 'Education' },
-  { value: 'general', label: 'General' },
+  { id: 'legal', text: 'Legal' },
+  { id: 'healthcare', text: 'Healthcare' },
+  { id: 'ecommerce', text: 'E-Commerce' },
+  { id: 'customer_support', text: 'Customer Support' },
+  { id: 'finance', text: 'Finance' },
+  { id: 'education', text: 'Education' },
+  { id: 'general', text: 'General' },
 ];
 
 const pricingTypes = [
-  { value: 'per_token', label: 'Per Token' },
-  { value: 'per_request', label: 'Per Request' },
-  { value: 'subscription', label: 'Subscription' },
-  { value: 'hybrid', label: 'Hybrid' },
+  { id: 'per_token', text: 'Per Token', description: 'Charge based on input/output tokens used' },
+  { id: 'per_request', text: 'Per Request', description: 'Fixed price for each API request' },
+  { id: 'per_user', text: 'Per User', description: 'Monthly fee per active user' },
+  { id: 'subscription', text: 'Subscription', description: 'Fixed monthly fee with included usage' },
+  { id: 'hybrid', text: 'Hybrid', description: 'Base subscription plus usage-based charges' },
 ];
 
 const defaultModel = {
   name: '',
   description: '',
   category: 'general',
-  provider: 'openai',
+  provider: 'custom',
   provider_model_id: '',
-  system_prompt: '',
   max_tokens: 4096,
   temperature: 0.7,
   is_public: true,
+  // Self-hosted configuration
+  base_url: '',
+  api_key: '',
+  is_fine_tuned: false,
+  base_model: '',
+  context_length: 4096,
   pricing: {
     pricing_type: 'per_token',
     price_per_1k_input_tokens: 0,
     price_per_1k_output_tokens: 0,
     price_per_request: 0,
+    price_per_user: 0,
     monthly_subscription_price: 0,
     included_tokens: 0,
     included_requests: 0,
@@ -105,7 +67,6 @@ const defaultModel = {
 };
 
 export default function AdminModels() {
-  const styles = useStyles();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<AIModel | null>(null);
@@ -131,6 +92,7 @@ export default function AdminModels() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-models'] });
       setEditingModel(null);
+      setIsCreateOpen(false);
     },
   });
 
@@ -149,15 +111,21 @@ export default function AdminModels() {
       category: model.category,
       provider: model.provider,
       provider_model_id: model.provider_model_id,
-      system_prompt: model.system_prompt || '',
       max_tokens: model.max_tokens,
       temperature: Number(model.temperature),
       is_public: model.is_public,
+      // Self-hosted configuration
+      base_url: (model as any).base_url || '',
+      api_key: (model as any).api_key || '',
+      is_fine_tuned: (model as any).is_fine_tuned || false,
+      base_model: (model as any).base_model || '',
+      context_length: (model as any).context_length || 4096,
       pricing: model.pricing ? {
         pricing_type: model.pricing.pricing_type,
         price_per_1k_input_tokens: model.pricing.price_per_1k_input_tokens,
         price_per_1k_output_tokens: model.pricing.price_per_1k_output_tokens,
         price_per_request: model.pricing.price_per_request,
+        price_per_user: (model.pricing as any).price_per_user || 0,
         monthly_subscription_price: model.pricing.monthly_subscription_price,
         included_tokens: model.pricing.included_tokens,
         included_requests: model.pricing.included_requests,
@@ -182,190 +150,42 @@ export default function AdminModels() {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-        <Spinner size="large" label="Loading models..." />
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+        <Loading description="Loading models..." withOverlay={false} />
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <Text size={700} weight="semibold" block>AI Models</Text>
-          <Text style={{ color: tokens.colorNeutralForeground3 }}>
-            Configure and manage your AI model catalog
-          </Text>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 400, marginBottom: '0.5rem' }}>AI Models</h1>
+          <p style={{ color: 'var(--text-secondary)' }}>Configure and manage your AI model catalog</p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={(_, data) => {
-          if (!data.open) handleClose();
-          else setIsCreateOpen(true);
-        }}>
-          <DialogTrigger>
-            <Button appearance="primary" icon={<Add24Regular />}>
-              Add Model
-            </Button>
-          </DialogTrigger>
-          <DialogSurface style={{ maxWidth: '700px' }}>
-            <DialogTitle>{editingModel ? 'Edit Model' : 'Add New Model'}</DialogTitle>
-            <DialogBody>
-              <DialogContent>
-                <div className={styles.form}>
-                  <div className={styles.formRow}>
-                    <div className={styles.field}>
-                      <Text weight="semibold">Name</Text>
-                      <Input
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      />
-                    </div>
-                    <div className={styles.field}>
-                      <Text weight="semibold">Provider</Text>
-                      <Dropdown
-                        value={providers.find(p => p.value === formData.provider)?.label}
-                        onOptionSelect={(_, data) => setFormData({ ...formData, provider: data.optionValue as string })}
-                      >
-                        {providers.map(p => <Option key={p.value} value={p.value}>{p.label}</Option>)}
-                      </Dropdown>
-                    </div>
-                  </div>
-
-                  <div className={styles.formRow}>
-                    <div className={styles.field}>
-                      <Text weight="semibold">Provider Model ID</Text>
-                      <Input
-                        placeholder="e.g., gpt-4, claude-3-opus"
-                        value={formData.provider_model_id}
-                        onChange={(e) => setFormData({ ...formData, provider_model_id: e.target.value })}
-                      />
-                    </div>
-                    <div className={styles.field}>
-                      <Text weight="semibold">Category</Text>
-                      <Dropdown
-                        value={categories.find(c => c.value === formData.category)?.label}
-                        onOptionSelect={(_, data) => setFormData({ ...formData, category: data.optionValue as string })}
-                      >
-                        {categories.map(c => <Option key={c.value} value={c.value}>{c.label}</Option>)}
-                      </Dropdown>
-                    </div>
-                  </div>
-
-                  <div className={styles.field}>
-                    <Text weight="semibold">Description</Text>
-                    <Textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    />
-                  </div>
-
-                  <div className={styles.field}>
-                    <Text weight="semibold">System Prompt</Text>
-                    <Textarea
-                      placeholder="Default system prompt for this model"
-                      value={formData.system_prompt}
-                      onChange={(e) => setFormData({ ...formData, system_prompt: e.target.value })}
-                    />
-                  </div>
-
-                  <Text size={500} weight="semibold" style={{ marginTop: tokens.spacingVerticalM }}>Pricing</Text>
-
-                  <div className={styles.formRow}>
-                    <div className={styles.field}>
-                      <Text weight="semibold">Pricing Type</Text>
-                      <Dropdown
-                        value={pricingTypes.find(p => p.value === formData.pricing.pricing_type)?.label}
-                        onOptionSelect={(_, data) => setFormData({
-                          ...formData,
-                          pricing: { ...formData.pricing, pricing_type: data.optionValue as string }
-                        })}
-                      >
-                        {pricingTypes.map(p => <Option key={p.value} value={p.value}>{p.label}</Option>)}
-                      </Dropdown>
-                    </div>
-                    <div className={styles.field}>
-                      <Text weight="semibold">Monthly Subscription ($)</Text>
-                      <Input
-                        type="number"
-                        value={String(formData.pricing.monthly_subscription_price)}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          pricing: { ...formData.pricing, monthly_subscription_price: Number(e.target.value) }
-                        })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className={styles.formRow}>
-                    <div className={styles.field}>
-                      <Text weight="semibold">Price per 1K Input Tokens ($)</Text>
-                      <Input
-                        type="number"
-                        step="0.0001"
-                        value={String(formData.pricing.price_per_1k_input_tokens)}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          pricing: { ...formData.pricing, price_per_1k_input_tokens: Number(e.target.value) }
-                        })}
-                      />
-                    </div>
-                    <div className={styles.field}>
-                      <Text weight="semibold">Price per 1K Output Tokens ($)</Text>
-                      <Input
-                        type="number"
-                        step="0.0001"
-                        value={String(formData.pricing.price_per_1k_output_tokens)}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          pricing: { ...formData.pricing, price_per_1k_output_tokens: Number(e.target.value) }
-                        })}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalM }}>
-                    <Switch
-                      checked={formData.is_public}
-                      onChange={(_, data) => setFormData({ ...formData, is_public: data.checked })}
-                    />
-                    <Text>Public (visible in marketplace)</Text>
-                  </div>
-                </div>
-              </DialogContent>
-            </DialogBody>
-            <DialogActions>
-              <Button appearance="secondary" onClick={handleClose}>Cancel</Button>
-              <Button
-                appearance="primary"
-                onClick={handleSubmit}
-                disabled={!formData.name || !formData.provider_model_id || createMutation.isPending || updateMutation.isPending}
-              >
-                {editingModel ? 'Save Changes' : 'Create Model'}
-              </Button>
-            </DialogActions>
-          </DialogSurface>
-        </Dialog>
+        <Button kind="primary" renderIcon={Add} onClick={() => setIsCreateOpen(true)}>
+          Add Model
+        </Button>
       </div>
 
-      <Card style={{ padding: tokens.spacingVerticalL }}>
+      <Tile style={{ padding: '1.5rem' }}>
         <Table>
-          <TableHeader>
+          <TableHead>
             <TableRow>
-              <TableHeaderCell>Name</TableHeaderCell>
-              <TableHeaderCell>Provider</TableHeaderCell>
-              <TableHeaderCell>Category</TableHeaderCell>
-              <TableHeaderCell>Pricing</TableHeaderCell>
-              <TableHeaderCell>Status</TableHeaderCell>
-              <TableHeaderCell>Actions</TableHeaderCell>
+              <TableHeader>Name</TableHeader>
+              <TableHeader>Provider</TableHeader>
+              <TableHeader>Category</TableHeader>
+              <TableHeader>Pricing</TableHeader>
+              <TableHeader>Status</TableHeader>
+              <TableHeader>Actions</TableHeader>
             </TableRow>
-          </TableHeader>
+          </TableHead>
           <TableBody>
             {models?.map(model => (
               <TableRow key={model.id}>
                 <TableCell>
-                  <Text weight="semibold">{model.name}</Text>
-                  <Text size={200} block style={{ color: tokens.colorNeutralForeground3 }}>
-                    {model.provider_model_id}
-                  </Text>
+                  <div style={{ fontWeight: 600 }}>{model.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{model.provider_model_id}</div>
                 </TableCell>
                 <TableCell>{model.provider}</TableCell>
                 <TableCell>{model.category.replace('_', ' ')}</TableCell>
@@ -377,19 +197,25 @@ export default function AdminModels() {
                     : 'Free'}
                 </TableCell>
                 <TableCell>
-                  <Badge color={model.is_active ? 'success' : 'danger'}>
+                  <Tag type={model.is_active ? 'green' : 'red'}>
                     {model.is_active ? 'Active' : 'Inactive'}
-                  </Badge>
+                  </Tag>
                 </TableCell>
                 <TableCell>
                   <Button
-                    appearance="subtle"
-                    icon={<Edit24Regular />}
+                    kind="ghost"
+                    size="sm"
+                    renderIcon={Edit}
+                    hasIconOnly
+                    iconDescription="Edit"
                     onClick={() => handleEdit(model)}
                   />
                   <Button
-                    appearance="subtle"
-                    icon={<Delete24Regular />}
+                    kind="ghost"
+                    size="sm"
+                    renderIcon={TrashCan}
+                    hasIconOnly
+                    iconDescription="Delete"
                     onClick={() => deleteMutation.mutate(model.id)}
                   />
                 </TableCell>
@@ -397,7 +223,202 @@ export default function AdminModels() {
             ))}
           </TableBody>
         </Table>
-      </Card>
+      </Tile>
+
+      <Modal
+        open={isCreateOpen}
+        onRequestClose={handleClose}
+        onRequestSubmit={handleSubmit}
+        modalHeading={editingModel ? 'Edit Model' : 'Add New Model'}
+        primaryButtonText={editingModel ? 'Save Changes' : 'Create Model'}
+        secondaryButtonText="Cancel"
+        primaryButtonDisabled={!formData.name || !formData.provider_model_id || createMutation.isPending || updateMutation.isPending}
+        size="lg"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <TextInput
+              id="name"
+              labelText="Name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+            <Dropdown
+              id="category"
+              titleText="Category"
+              label="Select category"
+              items={categories}
+              itemToString={(item) => item?.text || ''}
+              selectedItem={categories.find(c => c.id === formData.category)}
+              onChange={({ selectedItem }) => setFormData({ ...formData, category: selectedItem?.id || 'general' })}
+            />
+          </div>
+
+          <TextInput
+            id="provider_model_id"
+            labelText="Model ID"
+            placeholder="e.g., my-fine-tuned-llama, gpt-4-custom"
+            value={formData.provider_model_id}
+            onChange={(e) => setFormData({ ...formData, provider_model_id: e.target.value })}
+          />
+
+          <TextArea
+            id="description"
+            labelText="Description"
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          />
+
+          <h3 style={{ fontWeight: 600, marginTop: '0.5rem' }}>Server Configuration</h3>
+
+              <TextInput
+                id="base_url"
+                labelText="Base URL / API Endpoint"
+                placeholder="e.g., http://localhost:11434 or http://your-server:8000/v1"
+                value={formData.base_url}
+                onChange={(e) => setFormData({ ...formData, base_url: e.target.value })}
+              />
+
+              <TextInput
+                id="api_key"
+                type="password"
+                labelText="API Key (optional)"
+                placeholder="Enter API key if authentication is required"
+                value={formData.api_key}
+                onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
+              />
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <TextInput
+                  id="context_length"
+                  type="number"
+                  labelText="Context Length"
+                  placeholder="e.g., 4096, 8192, 32768"
+                  value={String(formData.context_length)}
+                  onChange={(e) => setFormData({ ...formData, context_length: Number(e.target.value) })}
+                />
+                <TextInput
+                  id="max_tokens"
+                  type="number"
+                  labelText="Max Output Tokens"
+                  value={String(formData.max_tokens)}
+                  onChange={(e) => setFormData({ ...formData, max_tokens: Number(e.target.value) })}
+                />
+              </div>
+
+              <Toggle
+                id="is_fine_tuned"
+                labelText="Fine-tuned Model"
+                toggled={formData.is_fine_tuned}
+                onToggle={(checked) => setFormData({ ...formData, is_fine_tuned: checked })}
+              />
+
+              {formData.is_fine_tuned && (
+            <TextInput
+              id="base_model"
+              labelText="Base Model"
+              placeholder="e.g., llama-3.1-8b, mistral-7b"
+              value={formData.base_model}
+              onChange={(e) => setFormData({ ...formData, base_model: e.target.value })}
+            />
+          )}
+
+          <h3 style={{ fontWeight: 600, marginTop: '0.5rem' }}>Pricing</h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div>
+              <Dropdown
+                id="pricing_type"
+                titleText="Pricing Type"
+                label="Select pricing type"
+                items={pricingTypes}
+                itemToString={(item) => item?.text || ''}
+                itemToElement={(item) => (
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{item?.text}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{item?.description}</div>
+                  </div>
+                )}
+                selectedItem={pricingTypes.find(p => p.id === formData.pricing.pricing_type)}
+                onChange={({ selectedItem }) => setFormData({
+                  ...formData,
+                  pricing: { ...formData.pricing, pricing_type: selectedItem?.id || 'per_token' }
+                })}
+              />
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                {pricingTypes.find(p => p.id === formData.pricing.pricing_type)?.description}
+              </p>
+            </div>
+            <TextInput
+              id="monthly_price"
+              type="number"
+              labelText="Monthly Subscription ($)"
+              value={String(formData.pricing.monthly_subscription_price)}
+              onChange={(e) => setFormData({
+                ...formData,
+                pricing: { ...formData.pricing, monthly_subscription_price: Number(e.target.value) }
+              })}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <TextInput
+              id="input_price"
+              type="number"
+              step="0.0001"
+              labelText="Price per 1K Input Tokens ($)"
+              value={String(formData.pricing.price_per_1k_input_tokens)}
+              onChange={(e) => setFormData({
+                ...formData,
+                pricing: { ...formData.pricing, price_per_1k_input_tokens: Number(e.target.value) }
+              })}
+            />
+            <TextInput
+              id="output_price"
+              type="number"
+              step="0.0001"
+              labelText="Price per 1K Output Tokens ($)"
+              value={String(formData.pricing.price_per_1k_output_tokens)}
+              onChange={(e) => setFormData({
+                ...formData,
+                pricing: { ...formData.pricing, price_per_1k_output_tokens: Number(e.target.value) }
+              })}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <TextInput
+              id="price_per_request"
+              type="number"
+              step="0.01"
+              labelText="Price per Request ($)"
+              value={String(formData.pricing.price_per_request)}
+              onChange={(e) => setFormData({
+                ...formData,
+                pricing: { ...formData.pricing, price_per_request: Number(e.target.value) }
+              })}
+            />
+            <TextInput
+              id="price_per_user"
+              type="number"
+              step="0.01"
+              labelText="Price per User ($)"
+              value={String(formData.pricing.price_per_user)}
+              onChange={(e) => setFormData({
+                ...formData,
+                pricing: { ...formData.pricing, price_per_user: Number(e.target.value) }
+              })}
+            />
+          </div>
+
+          <Toggle
+            id="is_public"
+            labelText="Public (visible in marketplace)"
+            toggled={formData.is_public}
+            onToggle={(checked) => setFormData({ ...formData, is_public: checked })}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuthStore } from './stores/authStore';
-import { Spinner } from '@fluentui/react-components';
+import { Loading } from '@carbon/react';
 import Layout from './components/common/Layout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -16,12 +16,12 @@ import AdminModels from './pages/admin/AdminModels';
 import AdminOrganizations from './pages/admin/AdminOrganizations';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, isHydrated } = useAuthStore();
 
-  if (isLoading) {
+  if (!isHydrated || isLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spinner size="large" label="Loading..." />
+        <Loading description="Loading..." withOverlay={false} />
       </div>
     );
   }
@@ -48,14 +48,13 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  const { fetchUser, isAuthenticated } = useAuthStore();
+  const { initialize, isHydrated } = useAuthStore();
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (token && !isAuthenticated) {
-      fetchUser();
+    if (!isHydrated) {
+      initialize();
     }
-  }, [fetchUser, isAuthenticated]);
+  }, [initialize, isHydrated]);
 
   return (
     <Routes>

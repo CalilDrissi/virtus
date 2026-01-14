@@ -2,7 +2,27 @@
   "permissions": {
     "allow": [
       "Bash(git init:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(gh repo create:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker ps:*)",
+      "Bash(python3:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(pip install:*)",
+      "Bash(uvicorn:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(docker exec:*)",
+      "Bash(npm run build:*)",
+      "Bash(node diagnose.mjs:*)",
+      "Bash(node test-admin.mjs:*)",
+      "Bash(node test-all-pages.mjs:*)",
+      "Bash(node test-interactions.mjs:*)",
+      "Bash(git add:*)"
     ]
   }
 }
