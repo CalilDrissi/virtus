@@ -29,7 +29,9 @@
       "Bash(__NEW_LINE_59550085e8730b53__ gcloud projects add-iam-policy-binding tonal-justice-463521-h7 --member=\"serviceAccount:github-actions-deploy@tonal-justice-463521-h7.iam.gserviceaccount.com\" --role=\"roles/compute.instanceAdmin.v1\" --quiet)",
       "Bash(__NEW_LINE_59550085e8730b53__ gcloud projects add-iam-policy-binding tonal-justice-463521-h7 --member=\"serviceAccount:github-actions-deploy@tonal-justice-463521-h7.iam.gserviceaccount.com\" --role=\"roles/iap.tunnelResourceAccessor\" --quiet)",
       "Bash(__NEW_LINE_59550085e8730b53__ echo \"Service account configured\")",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(dig:*)",
+      "Bash(nslookup:*)"
     ]
   }
 }
