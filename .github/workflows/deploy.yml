@@ -1,0 +1,84 @@
+name: Deploy to GCloud
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: tonal-justice-463521-h7
+  GCE_INSTANCE: virtus-prod
+  GCE_INSTANCE_ZONE: europe-west1-b
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: tonal-justice-463521-h7
+
+      - name: Deploy to GCE
+        run: |
+          gcloud compute ssh virtus-prod \
+            --zone=europe-west1-b \
+            --command="
+              cd /opt/virtus || sudo mkdir -p /opt/virtus
+              sudo chown -R \$(whoami):\$(whoami) /opt/virtus
+              cd /opt/virtus
+              if [ -d .git ]; then
+                git pull origin main
+              else
+                git clone https://github.com/CalilDrissi/virtus.git .
+              fi
+              sudo docker compose down || true
+              sudo docker compose build --no-cache
+              sudo docker compose up -d
+              sudo docker image prune -f
+            "
+
+      - name: Health check
+        run: |
+          sleep 30
+          echo "Deployment complete. Check http://34.140.33.159"

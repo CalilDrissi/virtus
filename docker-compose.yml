@@ -1,70 +1,62 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: virtus-db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: virtus
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: virtus-qdrant
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
-    environment:
-      QDRANT__SERVICE__GRPC_PORT: 6334
-
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: virtus-backend
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/virtus
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
+      - DATABASE_URL=postgresql://virtus:virtus@db:5432/virtus
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy
-      qdrant:
-        condition: service_started
-    volumes:
-      - ./backend:/app
-      - uploads:/app/uploads
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: virtus-frontend
     ports:
-      - "3000:3000"
-    environment:
-      - VITE_API_URL=http://localhost:8000
+      - "3000:80"
     depends_on:
       - backend
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=virtus
+      - POSTGRES_PASSWORD=virtus
+      - POSTGRES_DB=virtus
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U virtus"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
 
 volumes:
   postgres_data:
-  qdrant_data:
-  uploads:
