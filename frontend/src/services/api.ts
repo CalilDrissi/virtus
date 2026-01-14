@@ -84,6 +84,14 @@ export const usersApi = {
   update: (userId: string, data: Partial<{ email: string; full_name: string; role: string; is_active: boolean }>) =>
     api.patch(`/users/${userId}`, data),
   delete: (userId: string) => api.delete(`/users/${userId}`),
+  uploadAvatar: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/users/me/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  deleteAvatar: () => api.delete('/users/me/avatar'),
 };
 
 // Models API
@@ -99,6 +107,10 @@ export const modelsApi = {
     api.put(`/models/${modelId}/pricing`, data),
   delete: (modelId: string) => api.delete(`/models/${modelId}`),
   checkHealth: (modelId: string) => api.get(`/models/${modelId}/health`),
+  // Data sources
+  getDataSources: (modelId: string) => api.get(`/models/${modelId}/data-sources`),
+  updateDataSources: (modelId: string, dataSourceIds: string[]) =>
+    api.put(`/models/${modelId}/data-sources`, { data_source_ids: dataSourceIds }),
 };
 
 // Subscriptions API
@@ -110,6 +122,16 @@ export const subscriptionsApi = {
     api.post('/subscriptions/checkout', data),
   cancel: (subscriptionId: string) => api.post(`/subscriptions/${subscriptionId}/cancel`),
   checkLimits: (subscriptionId: string) => api.get(`/subscriptions/${subscriptionId}/usage-limits`),
+  // Data sources
+  getDataSources: (subscriptionId: string) => api.get(`/subscriptions/${subscriptionId}/data-sources`),
+  updateDataSources: (subscriptionId: string, dataSourceIds: string[]) =>
+    api.put(`/subscriptions/${subscriptionId}/data-sources`, { data_source_ids: dataSourceIds }),
+  // API Keys
+  listApiKeys: (subscriptionId: string) => api.get(`/subscriptions/${subscriptionId}/api-keys`),
+  createApiKey: (subscriptionId: string, data: { name: string; scopes?: string[]; expires_in_days?: number }) =>
+    api.post(`/subscriptions/${subscriptionId}/api-keys`, data),
+  revokeApiKey: (subscriptionId: string, keyId: string) =>
+    api.delete(`/subscriptions/${subscriptionId}/api-keys/${keyId}`),
 };
 
 // Data Sources API
@@ -161,6 +183,7 @@ export const widgetsApi = {
   update: (widgetId: string, data: Record<string, unknown>) =>
     api.patch(`/widgets/${widgetId}`, data),
   delete: (widgetId: string) => api.delete(`/widgets/${widgetId}`),
+  getEmbedCode: (widgetId: string) => api.get(`/widgets/${widgetId}/embed-code`),
 };
 
 // Admin API
@@ -173,4 +196,90 @@ export const adminApi = {
     api.patch(`/admin/organizations/${orgId}/plan?plan=${plan}`),
   makePlatformAdmin: (userId: string) => api.post(`/admin/users/${userId}/make-admin`),
   removePlatformAdmin: (userId: string) => api.post(`/admin/users/${userId}/remove-admin`),
+  // Client management
+  listClients: (params?: { limit?: number; offset?: number; search?: string; active_only?: boolean }) =>
+    api.get('/admin/clients', { params }),
+  getClient: (userId: string) => api.get(`/admin/clients/${userId}`),
+  activateClient: (userId: string) => api.patch(`/admin/clients/${userId}/activate`),
+  deactivateClient: (userId: string) => api.patch(`/admin/clients/${userId}/deactivate`),
+  // Credits management
+  getOrganizationCredits: (orgId: string) => api.get(`/admin/organizations/${orgId}/credits`),
+  assignCredits: (orgId: string, data: { amount: number; reason?: string }) =>
+    api.post(`/admin/organizations/${orgId}/credits`, data),
+  // Analytics
+  getAnalyticsSummary: () => api.get('/admin/analytics/summary'),
+  getUsageOverTime: (days?: number) => api.get('/admin/analytics/usage-over-time', { params: { days } }),
+  getTopModels: (params?: { limit?: number; days?: number }) =>
+    api.get('/admin/analytics/top-models', { params }),
+  getTopOrganizations: (params?: { limit?: number; days?: number }) =>
+    api.get('/admin/analytics/top-organizations', { params }),
+  getSignupsOverTime: (days?: number) => api.get('/admin/analytics/signups-over-time', { params: { days } }),
+  getSubscriptionsOverTime: (days?: number) => api.get('/admin/analytics/subscriptions-over-time', { params: { days } }),
+  getRevenueByModel: (days?: number) => api.get('/admin/analytics/revenue-by-model', { params: { days } }),
+};
+
+// Roles API
+export const rolesApi = {
+  list: () => api.get('/roles'),
+  get: (roleId: string) => api.get(`/roles/${roleId}`),
+  create: (data: {
+    name: string;
+    description?: string;
+    permissions: string[];
+    model_ids: string[];
+    data_source_ids: string[];
+  }) => api.post('/roles', data),
+  update: (roleId: string, data: {
+    name?: string;
+    description?: string;
+    permissions?: string[];
+    model_ids?: string[];
+    data_source_ids?: string[];
+  }) => api.put(`/roles/${roleId}`, data),
+  delete: (roleId: string) => api.delete(`/roles/${roleId}`),
+  assignToUser: (userId: string, roleId: string | null) =>
+    api.put(`/roles/users/${userId}/role`, { role_id: roleId }),
+  getUserRole: (userId: string) => api.get(`/roles/users/${userId}/role`),
+};
+
+// Categories API
+export const categoriesApi = {
+  list: (params?: { active_only?: boolean }) => api.get('/categories', { params }),
+  get: (categoryId: string) => api.get(`/categories/${categoryId}`),
+  create: (data: { slug: string; name: string; description?: string; icon?: string; color?: string; sort_order?: number }) =>
+    api.post('/categories', data),
+  update: (categoryId: string, data: { slug?: string; name?: string; description?: string; icon?: string; color?: string; sort_order?: number; is_active?: boolean }) =>
+    api.patch(`/categories/${categoryId}`, data),
+  delete: (categoryId: string) => api.delete(`/categories/${categoryId}`),
+};
+
+// Teams API
+export const teamsApi = {
+  list: () => api.get('/teams'),
+  get: (teamId: string) => api.get(`/teams/${teamId}`),
+  create: (data: { name: string; description?: string }) =>
+    api.post('/teams', data),
+  update: (teamId: string, data: { name?: string; description?: string }) =>
+    api.put(`/teams/${teamId}`, data),
+  delete: (teamId: string) => api.delete(`/teams/${teamId}`),
+  // Members
+  listMembers: (teamId: string) => api.get(`/teams/${teamId}/members`),
+  addMember: (teamId: string, data: { email: string; role: string }) =>
+    api.post(`/teams/${teamId}/members`, data),
+  updateMember: (teamId: string, userId: string, data: { role: string }) =>
+    api.put(`/teams/${teamId}/members/${userId}`, data),
+  removeMember: (teamId: string, userId: string) =>
+    api.delete(`/teams/${teamId}/members/${userId}`),
+  // Permissions
+  getPermissions: (teamId: string) => api.get(`/teams/${teamId}/permissions`),
+  updatePermissions: (teamId: string, data: { permissions: string[] }) =>
+    api.put(`/teams/${teamId}/permissions`, data),
+  // Model Access
+  getModelAccess: (teamId: string) => api.get(`/teams/${teamId}/models`),
+  updateModelAccess: (teamId: string, data: { model_ids: string[] }) =>
+    api.put(`/teams/${teamId}/models`, data),
+  // Data Source Access
+  getDataSourceAccess: (teamId: string) => api.get(`/teams/${teamId}/data-sources`),
+  updateDataSourceAccess: (teamId: string, data: { data_source_ids: string[] }) =>
+    api.put(`/teams/${teamId}/data-sources`, data),
 };

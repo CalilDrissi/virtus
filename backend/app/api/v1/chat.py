@@ -26,25 +26,27 @@ async def verify_model_access(
     db: AsyncSession,
     organization_id: UUID,
     model_id: UUID,
-) -> tuple[AIModel, Optional[Subscription]]:
-    """Verify organization has access to the model"""
-    # Get model
+) -> tuple[AIModel, Optional[Subscription], List[UUID]]:
+    """Verify organization has access to the model and get linked data sources"""
+    # Get model with data sources
     result = await db.execute(
         select(AIModel)
         .where(AIModel.id == model_id, AIModel.is_active == True)
-        .options(selectinload(AIModel.pricing))
+        .options(selectinload(AIModel.pricing), selectinload(AIModel.data_sources))
     )
     model = result.scalar_one_or_none()
     if not model:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Model not found")
 
-    # Check subscription
+    # Check subscription with data sources
     result = await db.execute(
-        select(Subscription).where(
+        select(Subscription)
+        .where(
             Subscription.organization_id == organization_id,
             Subscription.model_id == model_id,
             Subscription.status == SubscriptionStatus.ACTIVE,
         )
+        .options(selectinload(Subscription.data_sources))
     )
     subscription = result.scalar_one_or_none()
 
@@ -56,7 +58,16 @@ async def verify_model_access(
                 detail="Subscription required for this model",
             )
 
-    return model, subscription
+    # Collect data source IDs from model and subscription
+    data_source_ids: List[UUID] = []
+    for ds in model.data_sources:
+        data_source_ids.append(ds.id)
+    if subscription:
+        for ds in subscription.data_sources:
+            if ds.id not in data_source_ids:
+                data_source_ids.append(ds.id)
+
+    return model, subscription, data_source_ids
 
 
 @router.post("/completions", response_model=ChatResponse)
@@ -66,7 +77,7 @@ async def create_completion(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a chat completion (non-streaming)"""
-    model, subscription = await verify_model_access(db, current_user.org_id, data.model_id)
+    model, subscription, linked_data_source_ids = await verify_model_access(db, current_user.org_id, data.model_id)
 
     # Check usage limits
     if subscription:
@@ -95,16 +106,26 @@ async def create_completion(
         db.add(conversation)
         await db.flush()
 
+    # Merge linked data sources with request data sources
+    effective_data_source_ids = list(linked_data_source_ids)
+    if data.data_source_ids:
+        for ds_id in data.data_source_ids:
+            if ds_id not in effective_data_source_ids:
+                effective_data_source_ids.append(ds_id)
+
+    # Auto-enable RAG if there are linked data sources, or if explicitly requested
+    use_rag = data.use_rag or len(effective_data_source_ids) > 0
+
     # Get RAG context if enabled
     context = ""
     context_chunks = []
-    if data.use_rag:
+    if use_rag and effective_data_source_ids:
         rag = RAGService(db)
         user_query = data.messages[-1].content if data.messages else ""
         rag_result = await rag.query(
             current_user.org_id,
             user_query,
-            data_source_ids=data.data_source_ids,
+            data_source_ids=effective_data_source_ids,
         )
         context = rag.format_context(rag_result.chunks)
         context_chunks = [{"content": c.content, "document": c.document_name} for c in rag_result.chunks]
@@ -186,7 +207,17 @@ async def create_streaming_completion(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a streaming chat completion"""
-    model, subscription = await verify_model_access(db, current_user.org_id, data.model_id)
+    model, subscription, linked_data_source_ids = await verify_model_access(db, current_user.org_id, data.model_id)
+
+    # Merge linked data sources with request data sources
+    effective_data_source_ids = list(linked_data_source_ids)
+    if data.data_source_ids:
+        for ds_id in data.data_source_ids:
+            if ds_id not in effective_data_source_ids:
+                effective_data_source_ids.append(ds_id)
+
+    # Auto-enable RAG if there are linked data sources
+    use_rag = data.use_rag or len(effective_data_source_ids) > 0
 
     async def generate():
         async with AsyncSessionLocal() as stream_db:
@@ -202,13 +233,13 @@ async def create_streaming_completion(
 
                 # Get RAG context
                 context = ""
-                if data.use_rag:
+                if use_rag and effective_data_source_ids:
                     rag = RAGService(stream_db)
                     user_query = data.messages[-1].content if data.messages else ""
                     rag_result = await rag.query(
                         current_user.org_id,
                         user_query,
-                        data_source_ids=data.data_source_ids,
+                        data_source_ids=effective_data_source_ids,
                     )
                     context = rag.format_context(rag_result.chunks)
 

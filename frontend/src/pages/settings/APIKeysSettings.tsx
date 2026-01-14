@@ -1,188 +1,114 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   Tile,
   Button,
-  TextInput,
   Tag,
-  Modal,
-  InlineNotification,
-  Table,
-  TableHead,
-  TableRow,
-  TableHeader,
-  TableBody,
-  TableCell,
+  ClickableTile,
 } from '@carbon/react';
-import { Add, TrashCan, Copy } from '@carbon/icons-react';
-import { authApi } from '../../services/api';
-import { APIKey } from '../../types';
+import { ArrowRight, Key, Bot } from '@carbon/icons-react';
+import { subscriptionsApi } from '../../services/api';
+import { Subscription } from '../../types';
 
 export default function APIKeysSettings() {
-  const queryClient = useQueryClient();
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newKey, setNewKey] = useState({ name: '', scopes: ['read', 'write'] });
-  const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  const { data: apiKeys } = useQuery<APIKey[]>({
-    queryKey: ['api-keys'],
-    queryFn: () => authApi.listApiKeys().then(res => res.data),
+  const { data: subscriptions, isLoading } = useQuery<Subscription[]>({
+    queryKey: ['subscriptions'],
+    queryFn: () => subscriptionsApi.list().then(res => res.data),
   });
 
-  const createMutation = useMutation({
-    mutationFn: (data: typeof newKey) => authApi.createApiKey(data),
-    onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-      setCreatedKey(response.data.key);
-      setNewKey({ name: '', scopes: ['read', 'write'] });
-    },
-  });
-
-  const revokeMutation = useMutation({
-    mutationFn: (keyId: string) => authApi.revokeApiKey(keyId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
-    },
-  });
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-  };
-
-  const headers = [
-    { key: 'name', header: 'Name' },
-    { key: 'key', header: 'Key' },
-    { key: 'status', header: 'Status' },
-    { key: 'lastUsed', header: 'Last Used' },
-    { key: 'actions', header: 'Actions' },
-  ];
-
-  const rows = apiKeys?.map(key => ({
-    id: key.id,
-    name: key.name,
-    key: `${key.key_prefix}...`,
-    status: key.is_active ? 'Active' : 'Revoked',
-    isActive: key.is_active,
-    lastUsed: key.last_used_at
-      ? new Date(key.last_used_at).toLocaleDateString()
-      : 'Never',
-  })) || [];
+  const activeSubscriptions = subscriptions?.filter(s => s.status === 'active') || [];
 
   return (
     <Tile style={{ padding: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 400, marginBottom: '0.5rem' }}>API Keys</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Manage API keys for programmatic access</p>
-        </div>
-        <Button kind="primary" renderIcon={Add} onClick={() => setIsCreateOpen(true)}>
-          Create API Key
-        </Button>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 400, marginBottom: '0.5rem' }}>API Keys</h2>
+        <p style={{ color: 'var(--text-secondary)' }}>
+          API keys are now managed per model subscription for better security and access control.
+        </p>
       </div>
 
-      {rows.length > 0 ? (
-        <Table>
-          <TableHead>
-            <TableRow>
-              {headers.map(header => (
-                <TableHeader key={header.key}>{header.header}</TableHeader>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map(row => (
-              <TableRow key={row.id}>
-                <TableCell>{row.name}</TableCell>
-                <TableCell style={{ fontFamily: 'monospace' }}>{row.key}</TableCell>
-                <TableCell>
-                  <Tag type={row.isActive ? 'green' : 'red'}>
-                    {row.status}
-                  </Tag>
-                </TableCell>
-                <TableCell>{row.lastUsed}</TableCell>
-                <TableCell>
-                  {row.isActive && (
-                    <Button
-                      kind="ghost"
-                      size="sm"
-                      renderIcon={TrashCan}
-                      hasIconOnly
-                      iconDescription="Revoke"
-                      onClick={() => revokeMutation.mutate(row.id)}
-                    />
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      ) : (
-        <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>
-          No API keys yet. Create one to access the API programmatically.
-        </p>
-      )}
-
-      <Modal
-        open={isCreateOpen}
-        onRequestClose={() => {
-          setIsCreateOpen(false);
-          setCreatedKey(null);
-        }}
-        onRequestSubmit={() => {
-          if (createdKey) {
-            setIsCreateOpen(false);
-            setCreatedKey(null);
-          } else {
-            createMutation.mutate(newKey);
-          }
-        }}
-        modalHeading={createdKey ? 'API Key Created' : 'Create API Key'}
-        primaryButtonText={createdKey ? 'Done' : 'Create'}
-        secondaryButtonText={createdKey ? undefined : 'Cancel'}
-        primaryButtonDisabled={!createdKey && (!newKey.name || createMutation.isPending)}
-      >
-        <div style={{ marginTop: '1rem' }}>
-          {createdKey ? (
-            <>
-              <InlineNotification
-                kind="warning"
-                title="Important"
-                subtitle="Copy this key now. You won't be able to see it again!"
-                lowContrast
-                hideCloseButton
-                style={{ marginBottom: '1rem' }}
-              />
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '1rem',
-                backgroundColor: 'var(--bg-primary)',
-                fontFamily: 'monospace',
-                wordBreak: 'break-all',
-              }}>
-                <span style={{ flex: 1 }}>{createdKey}</span>
-                <Button
-                  kind="ghost"
-                  size="sm"
-                  renderIcon={Copy}
-                  hasIconOnly
-                  iconDescription="Copy"
-                  onClick={() => copyToClipboard(createdKey)}
-                />
-              </div>
-            </>
-          ) : (
-            <TextInput
-              id="key-name"
-              labelText="Key Name"
-              placeholder="e.g., Production API"
-              value={newKey.name}
-              onChange={(e) => setNewKey({ ...newKey, name: e.target.value })}
-            />
-          )}
+      <Tile style={{ padding: '1.5rem', marginBottom: '1.5rem', backgroundColor: 'var(--layer-01)' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+          <Key size={24} style={{ color: 'var(--brand-primary)', flexShrink: 0 }} />
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+              Per-Model API Keys
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+              Each API key is now scoped to a specific AI model. This allows for better access control
+              and easier management of which models can be accessed programmatically.
+            </p>
+          </div>
         </div>
-      </Modal>
+      </Tile>
+
+      <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
+        Your Model Subscriptions
+      </h3>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+        Click on a subscription to manage its API keys:
+      </p>
+
+      {isLoading ? (
+        <p style={{ color: 'var(--text-secondary)' }}>Loading subscriptions...</p>
+      ) : activeSubscriptions.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {activeSubscriptions.map((subscription) => (
+            <ClickableTile
+              key={subscription.id}
+              onClick={() => navigate(`/subscriptions/${subscription.id}`)}
+              style={{ padding: '1rem' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--border-subtle)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    {subscription.model?.icon_url ? (
+                      <img
+                        src={subscription.model.icon_url}
+                        alt={subscription.model.name}
+                        style={{ width: '100%', height: '100%', borderRadius: '8px' }}
+                      />
+                    ) : (
+                      <Bot size={20} />
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>
+                      {subscription.model?.name || 'Unknown Model'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {subscription.model?.provider} • {subscription.model?.category}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Tag type="green" size="sm">{subscription.status}</Tag>
+                  <ArrowRight size={16} />
+                </div>
+              </div>
+            </ClickableTile>
+          ))}
+        </div>
+      ) : (
+        <Tile style={{ padding: '2rem', textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            No active subscriptions. Subscribe to a model to create API keys.
+          </p>
+          <Button kind="primary" onClick={() => navigate('/marketplace')}>
+            Browse Marketplace
+          </Button>
+        </Tile>
+      )}
     </Tile>
   );
 }

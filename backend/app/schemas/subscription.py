@@ -1,9 +1,9 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
 from app.models.subscription import SubscriptionStatus
-from app.schemas.ai_model import AIModelListResponse
+from app.schemas.ai_model import AIModelListResponse, DataSourceInfo
 
 
 class SubscriptionBase(BaseModel):
@@ -24,6 +24,7 @@ class SubscriptionResponse(SubscriptionBase):
     cancelled_at: Optional[datetime]
     created_at: datetime
     model: Optional[AIModelListResponse] = None
+    data_sources: List[DataSourceInfo] = []
 
     class Config:
         from_attributes = True
@@ -32,3 +33,8 @@ class SubscriptionResponse(SubscriptionBase):
 class SubscriptionWithUsage(SubscriptionResponse):
     usage_this_period: int  # tokens or requests depending on pricing type
     cost_this_period: float
+
+
+class SubscriptionDataSourcesUpdate(BaseModel):
+    """Request body for updating subscription data sources"""
+    data_source_ids: List[UUID]

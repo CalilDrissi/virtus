@@ -3,6 +3,7 @@ export interface User {
   organization_id: string;
   email: string;
   full_name: string | null;
+  avatar_url: string | null;
   role: 'owner' | 'admin' | 'member';
   is_platform_admin: boolean;
   is_active: boolean;
@@ -26,14 +27,21 @@ export interface OrganizationWithStats extends Organization {
   total_usage_tokens: number;
 }
 
+export interface DataSourceInfo {
+  id: string;
+  name: string;
+  type: string;
+}
+
 export interface AIModel {
   id: string;
   name: string;
   slug: string;
   description: string | null;
   category: string;
-  provider: 'openai' | 'anthropic' | 'ollama' | 'vllm';
+  provider: 'openai' | 'anthropic' | 'ollama' | 'vllm' | 'custom';
   provider_model_id: string;
+  provider_config: Record<string, string> | null;
   system_prompt: string | null;
   max_tokens: number;
   temperature: number;
@@ -43,6 +51,7 @@ export interface AIModel {
   created_at: string;
   updated_at: string;
   pricing: ModelPricing | null;
+  data_sources: DataSourceInfo[];
 }
 
 export interface ModelPricing {
@@ -71,6 +80,7 @@ export interface Subscription {
   cancelled_at: string | null;
   created_at: string;
   model?: AIModel;
+  data_sources: DataSourceInfo[];
 }
 
 export interface SubscriptionWithUsage extends Subscription {
@@ -162,6 +172,7 @@ export interface WidgetConfig {
   allowed_domains: string[];
   logo_url: string | null;
   title: string;
+  is_active: boolean;
 }
 
 export interface APIKey {

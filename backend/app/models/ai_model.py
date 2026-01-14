@@ -2,10 +2,21 @@ import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 from decimal import Decimal
-from sqlalchemy import Column, String, DateTime, Enum, Boolean, Text, ForeignKey, Numeric, Integer
+from sqlalchemy import Column, String, DateTime, Enum, Boolean, Text, ForeignKey, Numeric, Integer, Table
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from app.database import Base
+
+
+# Association table for model-data_source many-to-many
+model_data_sources = Table(
+    'model_data_sources',
+    Base.metadata,
+    Column('id', UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column('model_id', UUID(as_uuid=True), ForeignKey('ai_models.id', ondelete='CASCADE'), nullable=False),
+    Column('data_source_id', UUID(as_uuid=True), ForeignKey('data_sources.id', ondelete='CASCADE'), nullable=False),
+    Column('created_at', DateTime, default=datetime.utcnow, nullable=False),
+)
 
 
 class AIProvider(str, PyEnum):
@@ -13,9 +24,12 @@ class AIProvider(str, PyEnum):
     ANTHROPIC = "anthropic"
     OLLAMA = "ollama"
     VLLM = "vllm"
+    CUSTOM = "custom"  # OpenAI-compatible API with custom base_url
 
 
-class ModelCategory(str, PyEnum):
+# Legacy enum - kept for backwards compatibility during migration
+# New code should use the model_categories table
+class ModelCategoryEnum(str, PyEnum):
     LEGAL = "legal"
     HEALTHCARE = "healthcare"
     ECOMMERCE = "ecommerce"
@@ -39,7 +53,7 @@ class AIModel(Base):
     name = Column(String(255), nullable=False)
     slug = Column(String(100), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=True)
-    category = Column(Enum(ModelCategory), default=ModelCategory.GENERAL, nullable=False)
+    category = Column(String(50), default="general", nullable=False)
     provider = Column(Enum(AIProvider), nullable=False)
     provider_model_id = Column(String(255), nullable=False)  # e.g., "gpt-4", "claude-3-opus"
     provider_config = Column(JSONB, default=dict, nullable=False)  # API keys, endpoints, etc.
@@ -54,10 +68,11 @@ class AIModel(Base):
 
     # Relationships
     pricing = relationship("ModelPricing", back_populates="model", uselist=False, cascade="all, delete-orphan")
-    subscriptions = relationship("Subscription", back_populates="model")
-    conversations = relationship("Conversation", back_populates="model")
-    usage_records = relationship("UsageRecord", back_populates="model")
-    widget_configs = relationship("WidgetConfig", back_populates="model")
+    subscriptions = relationship("Subscription", back_populates="model", passive_deletes=True)
+    conversations = relationship("Conversation", back_populates="model", passive_deletes=True)
+    usage_records = relationship("UsageRecord", back_populates="model", passive_deletes=True)
+    widget_configs = relationship("WidgetConfig", back_populates="model", passive_deletes=True)
+    data_sources = relationship("DataSource", secondary=model_data_sources, backref="models", passive_deletes=True)
 
     def __repr__(self):
         return f"<AIModel {self.name}>"

@@ -8,12 +8,15 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import MarketplacePage from './pages/marketplace/MarketplacePage';
 import ModelDetailPage from './pages/marketplace/ModelDetailPage';
-import ChatPage from './pages/chat/ChatPage';
-import DataSourcesPage from './pages/DataSourcesPage';
+import TestModelPage from './pages/marketplace/TestModelPage';
+import SubscriptionDetailPage from './pages/subscriptions/SubscriptionDetailPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminModels from './pages/admin/AdminModels';
 import AdminOrganizations from './pages/admin/AdminOrganizations';
+import AdminClients from './pages/admin/AdminClients';
+import AdminCategories from './pages/admin/AdminCategories';
+import AdminAnalytics from './pages/admin/AdminAnalytics';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, isHydrated } = useAuthStore();
@@ -74,9 +77,8 @@ function App() {
         <Route index element={<DashboardPage />} />
         <Route path="marketplace" element={<MarketplacePage />} />
         <Route path="marketplace/:modelId" element={<ModelDetailPage />} />
-        <Route path="chat" element={<ChatPage />} />
-        <Route path="chat/:conversationId" element={<ChatPage />} />
-        <Route path="data-sources" element={<DataSourcesPage />} />
+        <Route path="marketplace/:modelId/test" element={<TestModelPage />} />
+        <Route path="subscriptions/:subscriptionId" element={<SubscriptionDetailPage />} />
         <Route path="settings/*" element={<SettingsPage />} />
 
         {/* Admin routes */}
@@ -101,6 +103,30 @@ function App() {
           element={
             <AdminRoute>
               <AdminOrganizations />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="admin/clients"
+          element={
+            <AdminRoute>
+              <AdminClients />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="admin/categories"
+          element={
+            <AdminRoute>
+              <AdminCategories />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="admin/analytics"
+          element={
+            <AdminRoute>
+              <AdminAnalytics />
             </AdminRoute>
           }
         />

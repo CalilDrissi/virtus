@@ -11,6 +11,8 @@ import {
 import { Logout, Settings, UserAdmin } from '@carbon/icons-react';
 import { useAuthStore } from '../../stores/authStore';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -43,18 +45,6 @@ export default function Layout() {
             Marketplace
           </HeaderMenuItem>
           <HeaderMenuItem
-            isActive={isActive('/chat')}
-            onClick={() => navigate('/chat')}
-          >
-            Chat
-          </HeaderMenuItem>
-          <HeaderMenuItem
-            isActive={isActive('/data-sources')}
-            onClick={() => navigate('/data-sources')}
-          >
-            Data Sources
-          </HeaderMenuItem>
-          <HeaderMenuItem
             isActive={isActive('/settings')}
             onClick={() => navigate('/settings')}
           >
@@ -75,11 +65,37 @@ export default function Layout() {
             alignItems: 'center',
             padding: '0 1rem',
             color: 'var(--gray-30)',
-            fontSize: '0.875rem'
+            fontSize: '0.875rem',
+            gap: '0.5rem',
           }}>
+            {/* User Avatar */}
+            <div style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              backgroundColor: user?.avatar_url ? 'transparent' : 'var(--brand-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--white)',
+              fontSize: '0.75rem',
+              fontWeight: 500,
+              overflow: 'hidden',
+              flexShrink: 0,
+            }}>
+              {user?.avatar_url ? (
+                <img
+                  src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`}
+                  alt="Avatar"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                (user?.full_name || user?.email || 'U').charAt(0).toUpperCase()
+              )}
+            </div>
             <span style={{ color: 'var(--white)' }}>{user?.full_name || user?.email}</span>
             {organization && (
-              <span style={{ marginLeft: '0.5rem', color: 'var(--gray-50)' }}>
+              <span style={{ color: 'var(--gray-50)' }}>
                 ({organization.name})
               </span>
             )}

@@ -31,7 +31,7 @@ export default function AdminDashboard() {
       icon: UserMultiple,
       value: stats?.users || 0,
       label: 'Total Users',
-      path: '/admin/organizations',
+      path: '/admin/clients',
     },
     {
       icon: Bot,
@@ -43,13 +43,16 @@ export default function AdminDashboard() {
       icon: Wallet,
       value: `$${(stats?.total_revenue || 0).toFixed(2)}`,
       label: 'Total Revenue',
-      path: '/admin/organizations',
+      path: '/admin/analytics',
     },
   ];
 
   const quickActions = [
     { label: 'Manage AI Models', description: 'Add, edit, and configure models', path: '/admin/models' },
+    { label: 'Model Categories', description: 'Create and manage model categories', path: '/admin/categories' },
     { label: 'View Organizations', description: 'Manage tenants and subscriptions', path: '/admin/organizations' },
+    { label: 'Client Management', description: 'Manage users, deactivate accounts, assign credits', path: '/admin/clients' },
+    { label: 'Analytics', description: 'View platform usage trends and insights', path: '/admin/analytics' },
   ];
 
   return (

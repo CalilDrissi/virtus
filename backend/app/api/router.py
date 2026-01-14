@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, users, organizations, models, subscriptions, data_sources, chat, billing, widget, admin
+from app.api.v1 import auth, users, organizations, models, subscriptions, data_sources, chat, billing, widget, admin, teams, roles, categories
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -13,3 +13,6 @@ api_router.include_router(chat.router)
 api_router.include_router(billing.router)
 api_router.include_router(widget.router)
 api_router.include_router(admin.router)
+api_router.include_router(teams.router)
+api_router.include_router(roles.router)
+api_router.include_router(categories.router)

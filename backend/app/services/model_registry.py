@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from app.models.ai_model import AIModel, ModelPricing, AIProvider
+from app.models.ai_model import AIModel, ModelPricing, AIProvider, model_data_sources
 from app.schemas.ai_model import AIModelCreate, AIModelUpdate, ModelPricingCreate, ModelPricingUpdate
 from app.providers.base import BaseAIProvider
 from app.providers import OpenAIProvider, AnthropicProvider, OllamaProvider, VLLMProvider
@@ -28,6 +28,10 @@ class ModelRegistry:
             return OllamaProvider(config)
         elif model.provider == AIProvider.VLLM:
             return VLLMProvider(config)
+        elif model.provider == AIProvider.CUSTOM:
+            # Custom providers use OpenAI-compatible API format
+            # Requires base_url in provider_config
+            return OpenAIProvider(config)
         else:
             raise ValueError(f"Unknown provider: {model.provider}")
 
@@ -39,7 +43,8 @@ class ModelRegistry:
         # Ensure unique slug
         result = await self.db.execute(select(AIModel).where(AIModel.slug == slug))
         if result.scalar_one_or_none():
-            slug = f"{slug}-{UUID().hex[:8]}"
+            import uuid
+            slug = f"{slug}-{uuid.uuid4().hex[:8]}"
 
         model = AIModel(
             name=data.name,
@@ -72,8 +77,8 @@ class ModelRegistry:
             self.db.add(pricing)
 
         await self.db.commit()
-        await self.db.refresh(model)
-        return model
+        # Re-fetch with pricing relationship loaded
+        return await self.get_model(model.id)
 
     async def update_model(self, model_id: UUID, data: AIModelUpdate) -> Optional[AIModel]:
         """Update an AI model"""
@@ -126,14 +131,18 @@ class ModelRegistry:
     async def get_model(self, model_id: UUID) -> Optional[AIModel]:
         """Get a model by ID"""
         result = await self.db.execute(
-            select(AIModel).where(AIModel.id == model_id).options(selectinload(AIModel.pricing))
+            select(AIModel)
+            .where(AIModel.id == model_id)
+            .options(selectinload(AIModel.pricing), selectinload(AIModel.data_sources))
         )
         return result.scalar_one_or_none()
 
     async def get_model_by_slug(self, slug: str) -> Optional[AIModel]:
         """Get a model by slug"""
         result = await self.db.execute(
-            select(AIModel).where(AIModel.slug == slug).options(selectinload(AIModel.pricing))
+            select(AIModel)
+            .where(AIModel.slug == slug)
+            .options(selectinload(AIModel.pricing), selectinload(AIModel.data_sources))
         )
         return result.scalar_one_or_none()
 
@@ -144,7 +153,7 @@ class ModelRegistry:
         category: str = None,
     ) -> List[AIModel]:
         """List models with filters"""
-        query = select(AIModel).options(selectinload(AIModel.pricing))
+        query = select(AIModel).options(selectinload(AIModel.pricing), selectinload(AIModel.data_sources))
 
         if public_only:
             query = query.where(AIModel.is_public == True)

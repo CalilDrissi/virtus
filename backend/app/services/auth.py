@@ -120,17 +120,21 @@ class AuthService:
         return result.scalar_one_or_none()
 
     async def create_api_key(
-        self, organization_id: UUID, data: APIKeyCreate
+        self, organization_id: UUID, data: APIKeyCreate, subscription_id: Optional[UUID] = None
     ) -> APIKeyWithSecret:
-        """Create a new API key for an organization"""
+        """Create a new API key for an organization, optionally scoped to a subscription"""
         key, key_hash, key_prefix = generate_api_key()
 
         expires_at = None
         if data.expires_in_days:
             expires_at = datetime.utcnow() + timedelta(days=data.expires_in_days)
 
+        # Use subscription_id from data if provided, otherwise use parameter
+        final_subscription_id = data.subscription_id or subscription_id
+
         api_key = APIKey(
             organization_id=organization_id,
+            subscription_id=final_subscription_id,
             key_hash=key_hash,
             key_prefix=key_prefix,
             name=data.name,
@@ -144,6 +148,7 @@ class AuthService:
         return APIKeyWithSecret(
             id=api_key.id,
             organization_id=api_key.organization_id,
+            subscription_id=api_key.subscription_id,
             key_prefix=api_key.key_prefix,
             name=api_key.name,
             scopes=api_key.scopes,
@@ -187,13 +192,17 @@ class AuthService:
 
         return None
 
-    async def list_api_keys(self, organization_id: UUID) -> list[APIKey]:
-        """List all API keys for an organization"""
-        result = await self.db.execute(
-            select(APIKey)
-            .where(APIKey.organization_id == organization_id)
-            .order_by(APIKey.created_at.desc())
-        )
+    async def list_api_keys(
+        self, organization_id: UUID, subscription_id: Optional[UUID] = None
+    ) -> list[APIKey]:
+        """List API keys for an organization, optionally filtered by subscription"""
+        query = select(APIKey).where(APIKey.organization_id == organization_id)
+
+        if subscription_id is not None:
+            query = query.where(APIKey.subscription_id == subscription_id)
+
+        query = query.order_by(APIKey.created_at.desc())
+        result = await self.db.execute(query)
         return list(result.scalars().all())
 
     async def revoke_api_key(self, key_id: UUID, organization_id: UUID) -> bool:

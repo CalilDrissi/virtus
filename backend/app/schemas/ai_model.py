@@ -1,9 +1,9 @@
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
-from app.models.ai_model import AIProvider, ModelCategory, PricingType
+from app.models.ai_model import AIProvider, PricingType
 
 
 class ModelPricingBase(BaseModel):
@@ -44,7 +44,7 @@ class ModelPricingResponse(ModelPricingBase):
 class AIModelBase(BaseModel):
     name: str
     description: Optional[str] = None
-    category: ModelCategory = ModelCategory.GENERAL
+    category: str = "general"
     provider: AIProvider
     provider_model_id: str
     system_prompt: Optional[str] = None
@@ -63,7 +63,7 @@ class AIModelUpdate(BaseModel):
     name: Optional[str] = None
     slug: Optional[str] = None
     description: Optional[str] = None
-    category: Optional[ModelCategory] = None
+    category: Optional[str] = None
     provider: Optional[AIProvider] = None
     provider_model_id: Optional[str] = None
     provider_config: Optional[Dict[str, Any]] = None
@@ -75,15 +75,27 @@ class AIModelUpdate(BaseModel):
     icon_url: Optional[str] = None
 
 
+class DataSourceInfo(BaseModel):
+    """Minimal data source info for model responses"""
+    id: UUID
+    name: str
+    type: str
+
+    class Config:
+        from_attributes = True
+
+
 class AIModelResponse(AIModelBase):
     id: UUID
     slug: str
+    provider_config: Dict[str, Any] = {}
     is_public: bool
     is_active: bool
     icon_url: Optional[str]
     created_at: datetime
     updated_at: datetime
     pricing: Optional[ModelPricingResponse] = None
+    data_sources: List[DataSourceInfo] = []
 
     class Config:
         from_attributes = True
@@ -94,11 +106,20 @@ class AIModelListResponse(BaseModel):
     name: str
     slug: str
     description: Optional[str]
-    category: ModelCategory
+    category: str
     provider: AIProvider
+    provider_model_id: str
+    provider_config: Dict[str, Any] = {}
     icon_url: Optional[str]
+    is_public: bool
     is_active: bool
     pricing: Optional[ModelPricingResponse] = None
+    data_sources: List[DataSourceInfo] = []
 
     class Config:
         from_attributes = True
+
+
+class ModelDataSourcesUpdate(BaseModel):
+    """Request body for updating model data sources"""
+    data_source_ids: List[UUID]

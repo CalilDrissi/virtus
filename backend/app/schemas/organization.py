@@ -24,6 +24,7 @@ class OrganizationResponse(OrganizationBase):
     id: UUID
     slug: str
     plan: OrganizationPlan
+    credit_balance: float = 0
     settings: Dict[str, Any]
     created_at: datetime
     updated_at: datetime

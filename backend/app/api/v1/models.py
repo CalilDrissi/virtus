@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.services.model_registry import ModelRegistry
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.schemas.ai_model import (
     AIModelCreate,
     AIModelUpdate,
@@ -11,7 +13,11 @@ from app.schemas.ai_model import (
     AIModelListResponse,
     ModelPricingCreate,
     ModelPricingResponse,
+    ModelDataSourcesUpdate,
+    DataSourceInfo,
 )
+from app.models.ai_model import AIModel
+from app.models.data_source import DataSource
 from app.api.deps import get_current_user, CurrentUser, require_platform_admin
 
 router = APIRouter(prefix="/models", tags=["AI Models"])
@@ -134,3 +140,64 @@ async def check_model_health(
     """Check if a model's provider is healthy (platform admin only)"""
     registry = ModelRegistry(db)
     return await registry.check_health(model_id)
+
+
+@router.get("/{model_id}/data-sources", response_model=List[DataSourceInfo])
+async def get_model_data_sources(
+    model_id: UUID,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get data sources linked to a model"""
+    result = await db.execute(
+        select(AIModel)
+        .where(AIModel.id == model_id)
+        .options(selectinload(AIModel.data_sources))
+    )
+    model = result.scalar_one_or_none()
+    if not model:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Model not found")
+    return [DataSourceInfo.model_validate(ds) for ds in model.data_sources]
+
+
+@router.put("/{model_id}/data-sources", response_model=List[DataSourceInfo])
+async def update_model_data_sources(
+    model_id: UUID,
+    data: ModelDataSourcesUpdate,
+    current_user: Annotated[CurrentUser, Depends(require_platform_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Update data sources linked to a model (platform admin only)"""
+    # Get the model
+    result = await db.execute(
+        select(AIModel)
+        .where(AIModel.id == model_id)
+        .options(selectinload(AIModel.data_sources))
+    )
+    model = result.scalar_one_or_none()
+    if not model:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Model not found")
+
+    # Get the data sources
+    if data.data_source_ids:
+        ds_result = await db.execute(
+            select(DataSource).where(DataSource.id.in_(data.data_source_ids))
+        )
+        data_sources = list(ds_result.scalars().all())
+    else:
+        data_sources = []
+
+    # Update the relationship
+    model.data_sources = data_sources
+    await db.commit()
+
+    # Refresh to get updated data
+    await db.refresh(model)
+    result = await db.execute(
+        select(AIModel)
+        .where(AIModel.id == model_id)
+        .options(selectinload(AIModel.data_sources))
+    )
+    model = result.scalar_one_or_none()
+
+    return [DataSourceInfo.model_validate(ds) for ds in model.data_sources]

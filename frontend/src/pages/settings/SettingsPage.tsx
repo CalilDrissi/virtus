@@ -1,14 +1,18 @@
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Tile } from '@carbon/react';
-import { User, Enterprise, Password, Wallet } from '@carbon/icons-react';
+import { User, Enterprise, Password, Wallet, Group, UserRole } from '@carbon/icons-react';
 import ProfileSettings from './ProfileSettings';
 import OrganizationSettings from './OrganizationSettings';
 import APIKeysSettings from './APIKeysSettings';
 import BillingSettings from './BillingSettings';
+import TeamSettings from './TeamSettings';
+import RoleSettings from './RoleSettings';
 
 const tabs = [
   { value: '/settings/profile', icon: User, label: 'Profile' },
   { value: '/settings/organization', icon: Enterprise, label: 'Organization' },
+  { value: '/settings/teams', icon: Group, label: 'Teams' },
+  { value: '/settings/roles', icon: UserRole, label: 'Roles' },
   { value: '/settings/api-keys', icon: Password, label: 'API Keys' },
   { value: '/settings/billing', icon: Wallet, label: 'Billing' },
 ];
@@ -56,11 +60,13 @@ export default function SettingsPage() {
 
       <div style={{ flex: 1 }}>
         <Routes>
-          <Route path="/" element={<ProfileSettings />} />
-          <Route path="/profile" element={<ProfileSettings />} />
-          <Route path="/organization" element={<OrganizationSettings />} />
-          <Route path="/api-keys" element={<APIKeysSettings />} />
-          <Route path="/billing" element={<BillingSettings />} />
+          <Route index element={<ProfileSettings />} />
+          <Route path="profile" element={<ProfileSettings />} />
+          <Route path="organization" element={<OrganizationSettings />} />
+          <Route path="teams" element={<TeamSettings />} />
+          <Route path="roles" element={<RoleSettings />} />
+          <Route path="api-keys" element={<APIKeysSettings />} />
+          <Route path="billing" element={<BillingSettings />} />
         </Routes>
       </div>
     </div>

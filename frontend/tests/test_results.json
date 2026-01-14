@@ -1,0 +1,58 @@
+{
+  "passed": [
+    {
+      "test": "login",
+      "message": "Successfully logged in as admin"
+    },
+    {
+      "test": "navigate",
+      "message": "Successfully navigated to Admin Models page"
+    },
+    {
+      "test": "table_headers",
+      "message": "All expected table headers present"
+    },
+    {
+      "test": "table_rows",
+      "message": "Table has 4 model(s)"
+    },
+    {
+      "test": "add_model_button",
+      "message": "Add Model button works - modal opened"
+    },
+    {
+      "test": "edit_button",
+      "message": "Edit button works - edit modal opened"
+    },
+    {
+      "test": "delete_button",
+      "message": "Delete successful (4 -> 3)"
+    },
+    {
+      "test": "form_validation",
+      "message": "Create button is properly disabled when form is empty"
+    },
+    {
+      "test": "form_validation",
+      "message": "Create button is enabled after filling required fields"
+    },
+    {
+      "test": "dropdown_category",
+      "message": "Category dropdown works - 7 options available"
+    },
+    {
+      "test": "dropdown_provider",
+      "message": "Provider dropdown works - 5 options available"
+    },
+    {
+      "test": "api_integration",
+      "message": "No API errors in console"
+    },
+    {
+      "test": "console",
+      "message": "No severe JavaScript errors"
+    }
+  ],
+  "warnings": [],
+  "errors": []
+}

@@ -1,24 +1,50 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Tile,
   Button,
   Loading,
   Tag,
   InlineLoading,
+  MultiSelect,
 } from '@carbon/react';
-import { ArrowLeft, Chat, Checkmark, Money } from '@carbon/icons-react';
-import { modelsApi, subscriptionsApi } from '../../services/api';
-import { AIModel } from '../../types';
+import { ArrowLeft, Checkmark, Money, DataBase, ArrowRight, Play } from '@carbon/icons-react';
+import { modelsApi, subscriptionsApi, dataSourcesApi } from '../../services/api';
+import { AIModel, DataSource, Subscription } from '../../types';
 
 export default function ModelDetailPage() {
   const { modelId } = useParams<{ modelId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: model, isLoading } = useQuery<AIModel>({
     queryKey: ['model', modelId],
     queryFn: () => modelsApi.get(modelId!).then(res => res.data),
     enabled: !!modelId,
+  });
+
+  // Check if user has an active subscription for this model
+  const { data: subscriptions } = useQuery<Subscription[]>({
+    queryKey: ['subscriptions', 'active'],
+    queryFn: () => subscriptionsApi.listActive().then(res => res.data),
+  });
+
+  const subscription = subscriptions?.find(s => s.model_id === modelId);
+
+  // Fetch user's data sources for the multi-select
+  const { data: userDataSources } = useQuery<DataSource[]>({
+    queryKey: ['data-sources'],
+    queryFn: () => dataSourcesApi.list().then(res => res.data),
+    enabled: !!subscription, // Only fetch if subscribed
+  });
+
+  // Mutation to update subscription data sources
+  const updateSubscriptionDataSourcesMutation = useMutation({
+    mutationFn: (dataSourceIds: string[]) =>
+      subscriptionsApi.updateDataSources(subscription!.id, dataSourceIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+    },
   });
 
   const subscribeMutation = useMutation({
@@ -27,8 +53,25 @@ export default function ModelDetailPage() {
       success_url: `${window.location.origin}/marketplace/${modelId}?subscribed=true`,
       cancel_url: `${window.location.origin}/marketplace/${modelId}`,
     }),
-    onSuccess: (response) => {
-      window.location.href = response.data.url;
+    onSuccess: async (response) => {
+      // For free subscriptions, fetch the new subscription and navigate to it
+      if (response.data.session_id === 'free') {
+        await queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+        // Fetch updated subscriptions to get the new subscription ID
+        const subs = await subscriptionsApi.listActive();
+        const newSub = subs.data.find((s: Subscription) => s.model_id === modelId);
+        if (newSub) {
+          navigate(`/subscriptions/${newSub.id}`);
+        } else {
+          navigate('/');
+        }
+      } else {
+        window.location.href = response.data.url;
+      }
+    },
+    onError: (error: Error & { response?: { data?: { detail?: string } } }) => {
+      console.error('Subscription error:', error);
+      alert(error.response?.data?.detail || error.message || 'Failed to subscribe');
     },
   });
 
@@ -48,7 +91,7 @@ export default function ModelDetailPage() {
     );
   }
 
-  const formatPrice = (value: number) => `$${value.toFixed(4)}`;
+  const formatPrice = (value: number | string) => `$${Number(value).toFixed(4)}`;
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -99,34 +142,34 @@ export default function ModelDetailPage() {
           <Tile style={{ backgroundColor: 'var(--bg-primary)', padding: '1rem' }}>
             {model.pricing ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {model.pricing.monthly_subscription_price > 0 && (
+                {Number(model.pricing.monthly_subscription_price) > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Monthly Subscription</span>
-                    <strong>${model.pricing.monthly_subscription_price}/mo</strong>
+                    <strong>${Number(model.pricing.monthly_subscription_price)}/mo</strong>
                   </div>
                 )}
-                {model.pricing.price_per_1k_input_tokens > 0 && (
+                {Number(model.pricing.price_per_1k_input_tokens) > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Input Tokens (per 1K)</span>
                     <strong>{formatPrice(model.pricing.price_per_1k_input_tokens)}</strong>
                   </div>
                 )}
-                {model.pricing.price_per_1k_output_tokens > 0 && (
+                {Number(model.pricing.price_per_1k_output_tokens) > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Output Tokens (per 1K)</span>
                     <strong>{formatPrice(model.pricing.price_per_1k_output_tokens)}</strong>
                   </div>
                 )}
-                {model.pricing.price_per_request > 0 && (
+                {Number(model.pricing.price_per_request) > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Per Request</span>
                     <strong>{formatPrice(model.pricing.price_per_request)}</strong>
                   </div>
                 )}
-                {model.pricing.included_tokens > 0 && (
+                {Number(model.pricing.included_tokens) > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Included Tokens</span>
-                    <strong>{model.pricing.included_tokens.toLocaleString()}</strong>
+                    <strong>{Number(model.pricing.included_tokens).toLocaleString()}</strong>
                   </div>
                 )}
               </div>
@@ -158,23 +201,93 @@ export default function ModelDetailPage() {
           </div>
         </div>
 
+        {/* Data Sources Section */}
+        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.5rem', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <DataBase size={20} /> Data Sources
+          </h2>
+
+          {/* Model's default data sources */}
+          {model.data_sources && model.data_sources.length > 0 && (
+            <div style={{ marginBottom: '1rem' }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                Included with this model:
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                {model.data_sources.map(ds => (
+                  <Tag key={ds.id} type="blue">{ds.name}</Tag>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Subscription data sources management */}
+          {subscription ? (
+            <div>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                Add your own data sources to enhance this model:
+              </p>
+              {userDataSources && userDataSources.length > 0 ? (
+                <MultiSelect
+                  id="subscription-data-sources"
+                  titleText=""
+                  label={subscription.data_sources?.length > 0
+                    ? `${subscription.data_sources.length} custom data source(s) added`
+                    : 'Select data sources to add'}
+                  items={userDataSources.map(ds => ({ id: ds.id, label: ds.name, type: ds.type }))}
+                  itemToString={(item) => item?.label || ''}
+                  selectedItems={userDataSources
+                    .filter(ds => subscription.data_sources?.some(sds => sds.id === ds.id))
+                    .map(ds => ({ id: ds.id, label: ds.name, type: ds.type }))}
+                  onChange={({ selectedItems }) => {
+                    updateSubscriptionDataSourcesMutation.mutate(selectedItems?.map(item => item.id) || []);
+                  }}
+                />
+              ) : (
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  No data sources available. Create data sources in Settings to use them here.
+                </p>
+              )}
+            </div>
+          ) : (
+            <Tile style={{ backgroundColor: 'var(--bg-primary)', padding: '1rem' }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                Subscribe to this model to add your own data sources and customize the AI's knowledge base.
+              </p>
+            </Tile>
+          )}
+        </div>
+
         <div style={{ display: 'flex', gap: '1rem' }}>
-          <Button
-            kind="primary"
-            size="lg"
-            onClick={() => subscribeMutation.mutate()}
-            disabled={subscribeMutation.isPending}
-          >
-            {subscribeMutation.isPending ? <InlineLoading description="Processing..." /> : 'Subscribe Now'}
-          </Button>
-          <Button
-            kind="tertiary"
-            size="lg"
-            renderIcon={Chat}
-            onClick={() => navigate(`/chat?model=${model.id}`)}
-          >
-            Try in Chat
-          </Button>
+          {subscription ? (
+            <Button
+              kind="primary"
+              size="lg"
+              renderIcon={ArrowRight}
+              onClick={() => navigate(`/subscriptions/${subscription.id}`)}
+            >
+              Open Model
+            </Button>
+          ) : (
+            <>
+              <Button
+                kind="primary"
+                size="lg"
+                onClick={() => subscribeMutation.mutate()}
+                disabled={subscribeMutation.isPending}
+              >
+                {subscribeMutation.isPending ? <InlineLoading description="Processing..." /> : 'Subscribe Now'}
+              </Button>
+              <Button
+                kind="tertiary"
+                size="lg"
+                renderIcon={Play}
+                onClick={() => navigate(`/marketplace/${modelId}/test`)}
+              >
+                Test Model
+              </Button>
+            </>
+          )}
         </div>
       </Tile>
     </div>
