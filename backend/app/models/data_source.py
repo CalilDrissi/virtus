@@ -26,7 +26,7 @@ class DataSource(Base):
     __tablename__ = "data_sources"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    model_id = Column(UUID(as_uuid=True), ForeignKey("ai_models.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     type = Column(Enum(DataSourceType), nullable=False)
@@ -38,7 +38,7 @@ class DataSource(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationships
-    organization = relationship("Organization", back_populates="data_sources")
+    model = relationship("AIModel", back_populates="data_sources")
     documents = relationship("Document", back_populates="data_source", cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -50,7 +50,6 @@ class Document(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     data_source_id = Column(UUID(as_uuid=True), ForeignKey("data_sources.id", ondelete="CASCADE"), nullable=False)
-    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     filename = Column(String(255), nullable=False)
     original_filename = Column(String(255), nullable=False)
     content_type = Column(String(100), nullable=False)
@@ -65,7 +64,6 @@ class Document(Base):
 
     # Relationships
     data_source = relationship("DataSource", back_populates="documents")
-    organization = relationship("Organization", back_populates="documents")
 
     def __repr__(self):
         return f"<Document {self.filename}>"

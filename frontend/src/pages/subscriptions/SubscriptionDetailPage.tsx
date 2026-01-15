@@ -13,9 +13,7 @@ import {
   TextArea,
   Loading,
   Tag,
-  InlineLoading,
   InlineNotification,
-  MultiSelect,
   Modal,
   Dropdown,
   Table,
@@ -31,23 +29,17 @@ import {
   Bot,
   Add,
   TrashCan,
-  Upload,
   DataBase,
   Chat,
   Information,
-  Email,
-  Api,
-  Globe,
-  Document,
   Code,
   Edit,
   Copy,
   Checkmark,
   Key,
 } from '@carbon/icons-react';
-import { subscriptionsApi, dataSourcesApi, chatApi, widgetsApi } from '../../services/api';
-import { Subscription, DataSource, WidgetConfig, APIKey } from '../../types';
-import CreateDataSourceModal from '../../components/common/CreateDataSourceModal';
+import { subscriptionsApi, chatApi, widgetsApi } from '../../services/api';
+import { Subscription, WidgetConfig, APIKey } from '../../types';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -64,9 +56,6 @@ export default function SubscriptionDetailPage() {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Data source state
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // Widget state
   const [isWidgetModalOpen, setIsWidgetModalOpen] = useState(false);
@@ -97,12 +86,6 @@ export default function SubscriptionDetailPage() {
     queryKey: ['subscription', subscriptionId],
     queryFn: () => subscriptionsApi.get(subscriptionId!).then(res => res.data),
     enabled: !!subscriptionId,
-  });
-
-  // Fetch all user data sources
-  const { data: allDataSources, isLoading: dsLoading } = useQuery<DataSource[]>({
-    queryKey: ['data-sources'],
-    queryFn: () => dataSourcesApi.list().then(res => res.data),
   });
 
   // Fetch widgets for this model
@@ -222,64 +205,6 @@ export default function SubscriptionDetailPage() {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  // Data source mutations
-  const createMutation = useMutation({
-    mutationFn: (data: { name: string; description: string; type: string; config: unknown }) =>
-      dataSourcesApi.create(data as { name: string; description: string; type: string; config: Record<string, unknown> }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['data-sources'] });
-      setIsCreateOpen(false);
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => dataSourcesApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['data-sources'] });
-      queryClient.invalidateQueries({ queryKey: ['subscription', subscriptionId] });
-    },
-  });
-
-  const uploadMutation = useMutation({
-    mutationFn: ({ dataSourceId, file }: { dataSourceId: string; file: File }) =>
-      dataSourcesApi.uploadDocument(dataSourceId, file),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['data-sources'] });
-    },
-  });
-
-  // Update subscription data sources
-  const updateDataSourcesMutation = useMutation({
-    mutationFn: (dataSourceIds: string[]) =>
-      subscriptionsApi.updateDataSources(subscriptionId!, dataSourceIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subscription', subscriptionId] });
-    },
-  });
-
-  const handleFileUpload = (dataSourceId: string) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.pdf,.doc,.docx,.txt,.html';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        uploadMutation.mutate({ dataSourceId, file });
-      }
-    };
-    input.click();
-  };
-
-  const getStatusColor = (status: string): 'green' | 'magenta' | 'red' | 'blue' => {
-    const colors: Record<string, 'green' | 'magenta' | 'red' | 'blue'> = {
-      ready: 'green',
-      processing: 'magenta',
-      error: 'red',
-      pending: 'blue',
-    };
-    return colors[status] || 'blue';
-  };
-
   // Chat functions
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -354,7 +279,6 @@ export default function SubscriptionDetailPage() {
   }
 
   const model = subscription.model;
-  const linkedDataSourceIds = subscription.data_sources?.map(ds => ds.id) || [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 96px)' }}>
@@ -510,84 +434,17 @@ export default function SubscriptionDetailPage() {
           {/* Data Sources Tab */}
           <TabPanel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingTop: '1rem' }}>
-              {/* Model's default data sources */}
-              {model?.data_sources && model.data_sources.length > 0 && (
-                <Tile style={{ padding: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                    Model's Default Data Sources
-                  </h3>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                    These are included with the model and cannot be removed
-                  </p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    {model.data_sources.map(ds => (
-                      <Tag key={ds.id} type="blue">{ds.name}</Tag>
-                    ))}
-                  </div>
-                </Tile>
-              )}
-
-              {/* Link existing data sources */}
               <Tile style={{ padding: '1.5rem' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                  Your Data Sources
+                  Knowledge Base
                 </h3>
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                  Select data sources to link to this subscription for RAG
+                  This model has access to the following data sources for enhanced, context-aware responses.
                 </p>
-                {dsLoading ? (
-                  <Loading small withOverlay={false} />
-                ) : allDataSources && allDataSources.length > 0 ? (
-                  <MultiSelect
-                    id="subscription-data-sources"
-                    titleText=""
-                    label="Select data sources to link"
-                    items={allDataSources.map(ds => ({ id: ds.id, label: ds.name, type: ds.type }))}
-                    itemToString={(item) => item?.label || ''}
-                    selectedItems={allDataSources
-                      .filter(ds => linkedDataSourceIds.includes(ds.id))
-                      .map(ds => ({ id: ds.id, label: ds.name, type: ds.type }))}
-                    onChange={({ selectedItems }) => {
-                      updateDataSourcesMutation.mutate(selectedItems?.map(item => item.id) || []);
-                    }}
-                  />
-                ) : (
-                  <p style={{ color: 'var(--text-secondary)' }}>
-                    No data sources available. Create one below.
-                  </p>
-                )}
-              </Tile>
-
-              {/* Create new data source */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Manage Data Sources</h3>
-                <Button kind="primary" size="sm" renderIcon={Add} onClick={() => setIsCreateOpen(true)}>
-                  Create Data Source
-                </Button>
-              </div>
-
-              {/* Data source cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-                {allDataSources?.map(source => {
-                  const TypeIcon = {
-                    document: Document,
-                    email: Email,
-                    database: DataBase,
-                    api: Api,
-                    website: Globe,
-                  }[source.type] || Document;
-
-                  const typeLabel = {
-                    document: 'Documents',
-                    email: 'Email Inbox',
-                    database: 'Database',
-                    api: 'API Endpoint',
-                    website: 'Website',
-                  }[source.type] || source.type;
-
-                  return (
-                    <Tile key={source.id} style={{ padding: '1.5rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                {model?.data_sources && model.data_sources.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                    {model.data_sources.map(ds => (
+                      <Tile key={ds.id} style={{ padding: '1rem', backgroundColor: 'var(--bg-primary)' }}>
                         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
                           <div style={{
                             width: '40px',
@@ -599,80 +456,35 @@ export default function SubscriptionDetailPage() {
                             justifyContent: 'center',
                             flexShrink: 0,
                           }}>
-                            <TypeIcon size={20} />
+                            <DataBase size={20} />
                           </div>
                           <div>
-                            <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>{source.name}</h4>
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              {typeLabel}
-                            </p>
+                            <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>{ds.name}</h4>
+                            {ds.description && (
+                              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                {ds.description}
+                              </p>
+                            )}
+                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                              <Tag type="blue" size="sm">{ds.type}</Tag>
+                              {ds.document_count !== undefined && ds.document_count > 0 && (
+                                <Tag type="gray" size="sm">{ds.document_count} docs</Tag>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <Tag type={getStatusColor(source.status)} size="sm">{source.status}</Tag>
-                          {linkedDataSourceIds.includes(source.id) && (
-                            <Tag type="green" size="sm">Linked</Tag>
-                          )}
-                        </div>
-                      </div>
-
-                      {source.description && (
-                        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                          {source.description}
-                        </p>
-                      )}
-
-                      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                        {source.type === 'document' && (
-                          <span>{source.document_count} document(s)</span>
-                        )}
-                        {source.last_synced_at && (
-                          <span>Synced {new Date(source.last_synced_at).toLocaleDateString()}</span>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        {source.type === 'document' && (
-                          <Button
-                            kind="tertiary"
-                            size="sm"
-                            renderIcon={Upload}
-                            onClick={() => handleFileUpload(source.id)}
-                            disabled={uploadMutation.isPending}
-                          >
-                            {uploadMutation.isPending ? <InlineLoading description="Uploading..." /> : 'Upload File'}
-                          </Button>
-                        )}
-                        {(source.type === 'email' || source.type === 'database' || source.type === 'api' || source.type === 'website') && (
-                          <Button
-                            kind="tertiary"
-                            size="sm"
-                            onClick={() => {/* TODO: Trigger sync */}}
-                          >
-                            Sync Now
-                          </Button>
-                        )}
-                        <Button
-                          kind="ghost"
-                          size="sm"
-                          renderIcon={TrashCan}
-                          hasIconOnly
-                          iconDescription="Delete"
-                          onClick={() => deleteMutation.mutate(source.id)}
-                        />
-                      </div>
-                    </Tile>
-                  );
-                })}
-              </div>
-
-              {allDataSources?.length === 0 && (
-                <Tile style={{ padding: '2rem', textAlign: 'center' }}>
-                  <p style={{ color: 'var(--text-secondary)' }}>
-                    No data sources yet. Create one to start uploading documents for RAG.
-                  </p>
-                </Tile>
-              )}
+                      </Tile>
+                    ))}
+                  </div>
+                ) : (
+                  <Tile style={{ padding: '2rem', textAlign: 'center', backgroundColor: 'var(--bg-primary)' }}>
+                    <DataBase size={48} style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }} />
+                    <p style={{ color: 'var(--text-secondary)' }}>
+                      This model does not have any data sources configured. RAG features are not available.
+                    </p>
+                  </Tile>
+                )}
+              </Tile>
             </div>
           </TabPanel>
 
@@ -979,14 +791,6 @@ export default function SubscriptionDetailPage() {
           </TabPanel>
         </TabPanels>
       </Tabs>
-
-      {/* Create Data Source Modal */}
-      <CreateDataSourceModal
-        open={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onSubmit={(data) => createMutation.mutate(data)}
-        isLoading={createMutation.isPending}
-      />
 
       {/* Widget Create/Edit Modal */}
       <Modal

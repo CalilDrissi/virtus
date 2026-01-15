@@ -23,7 +23,7 @@ class DataSourceUpdate(BaseModel):
 
 class DataSourceResponse(DataSourceBase):
     id: UUID
-    organization_id: UUID
+    model_id: UUID
     config: Dict[str, Any]
     status: ProcessingStatus
     error_message: Optional[str]
@@ -43,14 +43,13 @@ class DocumentBase(BaseModel):
 class DocumentResponse(DocumentBase):
     id: UUID
     data_source_id: UUID
-    organization_id: UUID
     original_filename: str
     content_type: str
     file_size: int
     chunk_count: int
     status: ProcessingStatus
     error_message: Optional[str]
-    metadata: Dict[str, Any]
+    doc_metadata: Dict[str, Any] = {}
     created_at: datetime
 
     class Config:
@@ -66,8 +65,8 @@ class DocumentUploadResponse(BaseModel):
 
 class RAGQueryRequest(BaseModel):
     query: str
+    model_id: UUID
     top_k: int = 5
-    data_source_ids: Optional[List[UUID]] = None
 
 
 class RAGChunk(BaseModel):

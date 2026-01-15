@@ -2,21 +2,12 @@ import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 from decimal import Decimal
-from sqlalchemy import Column, String, DateTime, Enum, Boolean, Text, ForeignKey, Numeric, Integer, Table
+from sqlalchemy import Column, String, DateTime, Enum, Boolean, Text, ForeignKey, Numeric, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from app.database import Base
 
 
-# Association table for model-data_source many-to-many
-model_data_sources = Table(
-    'model_data_sources',
-    Base.metadata,
-    Column('id', UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column('model_id', UUID(as_uuid=True), ForeignKey('ai_models.id', ondelete='CASCADE'), nullable=False),
-    Column('data_source_id', UUID(as_uuid=True), ForeignKey('data_sources.id', ondelete='CASCADE'), nullable=False),
-    Column('created_at', DateTime, default=datetime.utcnow, nullable=False),
-)
 
 
 class AIProvider(str, PyEnum):
@@ -72,7 +63,7 @@ class AIModel(Base):
     conversations = relationship("Conversation", back_populates="model", passive_deletes=True)
     usage_records = relationship("UsageRecord", back_populates="model", passive_deletes=True)
     widget_configs = relationship("WidgetConfig", back_populates="model", passive_deletes=True)
-    data_sources = relationship("DataSource", secondary=model_data_sources, backref="models", passive_deletes=True)
+    data_sources = relationship("DataSource", back_populates="model", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<AIModel {self.name}>"

@@ -17,7 +17,6 @@ import AdminOrganizations from './pages/admin/AdminOrganizations';
 import AdminClients from './pages/admin/AdminClients';
 import AdminCategories from './pages/admin/AdminCategories';
 import AdminAnalytics from './pages/admin/AdminAnalytics';
-import DataSourcesPage from './pages/DataSourcesPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, isHydrated } = useAuthStore();
@@ -80,7 +79,6 @@ function App() {
         <Route path="marketplace/:modelId" element={<ModelDetailPage />} />
         <Route path="marketplace/:modelId/test" element={<TestModelPage />} />
         <Route path="subscriptions/:subscriptionId" element={<SubscriptionDetailPage />} />
-        <Route path="data-sources" element={<DataSourcesPage />} />
         <Route path="settings/*" element={<SettingsPage />} />
 
         {/* Admin routes */}

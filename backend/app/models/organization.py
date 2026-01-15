@@ -31,8 +31,6 @@ class Organization(Base):
     users = relationship("User", back_populates="organization", cascade="all, delete-orphan")
     api_keys = relationship("APIKey", back_populates="organization", cascade="all, delete-orphan")
     subscriptions = relationship("Subscription", back_populates="organization", cascade="all, delete-orphan")
-    data_sources = relationship("DataSource", back_populates="organization", cascade="all, delete-orphan")
-    documents = relationship("Document", back_populates="organization", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="organization", cascade="all, delete-orphan")
     usage_records = relationship("UsageRecord", back_populates="organization", cascade="all, delete-orphan")
     widget_configs = relationship("WidgetConfig", back_populates="organization", cascade="all, delete-orphan")

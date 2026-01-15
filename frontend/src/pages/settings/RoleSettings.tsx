@@ -12,7 +12,7 @@ import {
   InlineLoading,
 } from '@carbon/react';
 import { Add, TrashCan, Edit } from '@carbon/icons-react';
-import { rolesApi, subscriptionsApi, dataSourcesApi } from '../../services/api';
+import { rolesApi, subscriptionsApi } from '../../services/api';
 import type { Role, RoleListItem, Permission } from '../../types/role';
 
 const PERMISSIONS: { id: Permission; label: string; description: string }[] = [
@@ -87,14 +87,14 @@ export default function RoleSettings() {
     },
   });
 
-  // Fetch data sources
-  const { data: dataSources = [] } = useQuery({
-    queryKey: ['data-sources'],
-    queryFn: async () => {
-      const res = await dataSourcesApi.list();
-      return res.data;
-    },
-  });
+  // Data sources are now per-model, so we derive them from subscriptions
+  const dataSources = subscriptions
+    .flatMap((sub: { model?: { data_sources?: { id: string; name: string }[] } }) =>
+      sub.model?.data_sources || []
+    )
+    .filter((ds: { id: string }, index: number, arr: { id: string }[]) =>
+      arr.findIndex(d => d.id === ds.id) === index
+    );
 
   // Mutations
   const createRoleMutation = useMutation({

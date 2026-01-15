@@ -6,11 +6,10 @@ import {
   Loading,
   Tag,
   InlineLoading,
-  MultiSelect,
 } from '@carbon/react';
 import { ArrowLeft, Checkmark, Money, DataBase, ArrowRight, Play } from '@carbon/icons-react';
-import { modelsApi, subscriptionsApi, dataSourcesApi } from '../../services/api';
-import { AIModel, DataSource, Subscription } from '../../types';
+import { modelsApi, subscriptionsApi } from '../../services/api';
+import { AIModel, Subscription } from '../../types';
 
 export default function ModelDetailPage() {
   const { modelId } = useParams<{ modelId: string }>();
@@ -30,22 +29,6 @@ export default function ModelDetailPage() {
   });
 
   const subscription = subscriptions?.find(s => s.model_id === modelId);
-
-  // Fetch user's data sources for the multi-select
-  const { data: userDataSources } = useQuery<DataSource[]>({
-    queryKey: ['data-sources'],
-    queryFn: () => dataSourcesApi.list().then(res => res.data),
-    enabled: !!subscription, // Only fetch if subscribed
-  });
-
-  // Mutation to update subscription data sources
-  const updateSubscriptionDataSourcesMutation = useMutation({
-    mutationFn: (dataSourceIds: string[]) =>
-      subscriptionsApi.updateDataSources(subscription!.id, dataSourceIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
-    },
-  });
 
   const subscribeMutation = useMutation({
     mutationFn: () => subscriptionsApi.checkout({
@@ -202,61 +185,21 @@ export default function ModelDetailPage() {
         </div>
 
         {/* Data Sources Section */}
-        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.5rem', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <DataBase size={20} /> Data Sources
-          </h2>
-
-          {/* Model's default data sources */}
-          {model.data_sources && model.data_sources.length > 0 && (
-            <div style={{ marginBottom: '1rem' }}>
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                Included with this model:
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                {model.data_sources.map(ds => (
-                  <Tag key={ds.id} type="blue">{ds.name}</Tag>
-                ))}
-              </div>
+        {model.data_sources && model.data_sources.length > 0 && (
+          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.5rem', marginBottom: '1.5rem' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <DataBase size={20} /> Knowledge Base
+            </h2>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              This model has access to the following data sources for enhanced responses:
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {model.data_sources.map(ds => (
+                <Tag key={ds.id} type="blue">{ds.name}</Tag>
+              ))}
             </div>
-          )}
-
-          {/* Subscription data sources management */}
-          {subscription ? (
-            <div>
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                Add your own data sources to enhance this model:
-              </p>
-              {userDataSources && userDataSources.length > 0 ? (
-                <MultiSelect
-                  id="subscription-data-sources"
-                  titleText=""
-                  label={subscription.data_sources?.length > 0
-                    ? `${subscription.data_sources.length} custom data source(s) added`
-                    : 'Select data sources to add'}
-                  items={userDataSources.map(ds => ({ id: ds.id, label: ds.name, type: ds.type }))}
-                  itemToString={(item) => item?.label || ''}
-                  selectedItems={userDataSources
-                    .filter(ds => subscription.data_sources?.some(sds => sds.id === ds.id))
-                    .map(ds => ({ id: ds.id, label: ds.name, type: ds.type }))}
-                  onChange={({ selectedItems }) => {
-                    updateSubscriptionDataSourcesMutation.mutate(selectedItems?.map(item => item.id) || []);
-                  }}
-                />
-              ) : (
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                  No data sources available. Create data sources in Settings to use them here.
-                </p>
-              )}
-            </div>
-          ) : (
-            <Tile style={{ backgroundColor: 'var(--bg-primary)', padding: '1rem' }}>
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                Subscribe to this model to add your own data sources and customize the AI's knowledge base.
-              </p>
-            </Tile>
-          )}
-        </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: '1rem' }}>
           {subscription ? (

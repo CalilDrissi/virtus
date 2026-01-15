@@ -31,6 +31,9 @@ export interface DataSourceInfo {
   id: string;
   name: string;
   type: string;
+  description?: string | null;
+  document_count?: number;
+  status?: string;
 }
 
 export interface AIModel {
@@ -90,7 +93,7 @@ export interface SubscriptionWithUsage extends Subscription {
 
 export interface DataSource {
   id: string;
-  organization_id: string;
+  model_id: string;
   name: string;
   description: string | null;
   type: 'document' | 'database' | 'email' | 'api' | 'website';

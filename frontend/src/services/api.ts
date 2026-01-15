@@ -134,24 +134,28 @@ export const subscriptionsApi = {
     api.delete(`/subscriptions/${subscriptionId}/api-keys/${keyId}`),
 };
 
-// Data Sources API
+// Data Sources API (per model)
 export const dataSourcesApi = {
-  list: () => api.get('/data-sources'),
-  get: (dataSourceId: string) => api.get(`/data-sources/${dataSourceId}`),
-  create: (data: { name: string; description?: string; type: string; config?: Record<string, unknown> }) =>
-    api.post('/data-sources', data),
-  delete: (dataSourceId: string) => api.delete(`/data-sources/${dataSourceId}`),
-  listDocuments: (dataSourceId: string) => api.get(`/data-sources/${dataSourceId}/documents`),
-  uploadDocument: (dataSourceId: string, file: File) => {
+  // Model-specific data sources
+  listForModel: (modelId: string) => api.get(`/models/${modelId}/data-sources`),
+  getForModel: (modelId: string, dataSourceId: string) =>
+    api.get(`/models/${modelId}/data-sources/${dataSourceId}`),
+  createForModel: (modelId: string, data: { name: string; description?: string; type: string; config?: Record<string, unknown> }) =>
+    api.post(`/models/${modelId}/data-sources`, data),
+  deleteForModel: (modelId: string, dataSourceId: string) =>
+    api.delete(`/models/${modelId}/data-sources/${dataSourceId}`),
+  listDocuments: (modelId: string, dataSourceId: string) =>
+    api.get(`/models/${modelId}/data-sources/${dataSourceId}/documents`),
+  uploadDocument: (modelId: string, dataSourceId: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post(`/data-sources/${dataSourceId}/documents`, formData, {
+    return api.post(`/models/${modelId}/data-sources/${dataSourceId}/documents`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-  deleteDocument: (dataSourceId: string, documentId: string) =>
-    api.delete(`/data-sources/${dataSourceId}/documents/${documentId}`),
-  query: (data: { query: string; top_k?: number; data_source_ids?: string[] }) =>
+  deleteDocument: (modelId: string, dataSourceId: string, documentId: string) =>
+    api.delete(`/models/${modelId}/data-sources/${dataSourceId}/documents/${documentId}`),
+  query: (data: { query: string; model_id: string; top_k?: number }) =>
     api.post('/data-sources/query', data),
 };
 
