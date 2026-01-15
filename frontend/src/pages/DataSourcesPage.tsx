@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Tile,
@@ -9,8 +9,9 @@ import {
   TextInput,
   Dropdown,
   InlineLoading,
+  InlineNotification,
 } from '@carbon/react';
-import { Add, TrashCan, Upload } from '@carbon/icons-react';
+import { Add, TrashCan, Upload, Close, Document } from '@carbon/icons-react';
 import { dataSourcesApi } from '../services/api';
 import { DataSource } from '../types';
 
@@ -25,6 +26,11 @@ export default function DataSourcesPage() {
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newSource, setNewSource] = useState({ name: '', description: '', type: 'document' });
+  const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: dataSources, isLoading } = useQuery<DataSource[]>({
     queryKey: ['data-sources'],
@@ -35,10 +41,54 @@ export default function DataSourcesPage() {
     mutationFn: (data: typeof newSource) => dataSourcesApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['data-sources'] });
-      setIsCreateOpen(false);
-      setNewSource({ name: '', description: '', type: 'document' });
     },
   });
+
+  const handleCreateWithFiles = async () => {
+    setUploadError(null);
+    setIsCreating(true);
+    setUploadProgress(null);
+
+    try {
+      // First, create the data source
+      setUploadProgress('Creating data source...');
+      const response = await dataSourcesApi.create(newSource);
+      const createdSource = response.data;
+
+      // If there are files to upload and type is document, upload them
+      if (filesToUpload.length > 0 && newSource.type === 'document') {
+        for (let i = 0; i < filesToUpload.length; i++) {
+          setUploadProgress(`Uploading file ${i + 1} of ${filesToUpload.length}...`);
+          await dataSourcesApi.uploadDocument(createdSource.id, filesToUpload[i]);
+        }
+      }
+
+      // Success - reset and close
+      queryClient.invalidateQueries({ queryKey: ['data-sources'] });
+      setIsCreateOpen(false);
+      setNewSource({ name: '', description: '', type: 'document' });
+      setFilesToUpload([]);
+      setUploadProgress(null);
+    } catch (err: unknown) {
+      const error = err as Error & { response?: { data?: { detail?: string } } };
+      setUploadError(error.response?.data?.detail || error.message || 'Failed to create data source');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setFilesToUpload(prev => [...prev, ...files]);
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFilesToUpload(prev => prev.filter((_, i) => i !== index));
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => dataSourcesApi.delete(id),
@@ -150,14 +200,39 @@ export default function DataSourcesPage() {
 
       <Modal
         open={isCreateOpen}
-        onRequestClose={() => setIsCreateOpen(false)}
-        onRequestSubmit={() => createMutation.mutate(newSource)}
+        onRequestClose={() => {
+          setIsCreateOpen(false);
+          setFilesToUpload([]);
+          setUploadError(null);
+          setUploadProgress(null);
+        }}
+        onRequestSubmit={handleCreateWithFiles}
         modalHeading="Create Data Source"
-        primaryButtonText={createMutation.isPending ? 'Creating...' : 'Create'}
+        primaryButtonText={isCreating ? 'Creating...' : 'Create'}
         secondaryButtonText="Cancel"
-        primaryButtonDisabled={!newSource.name || createMutation.isPending}
+        primaryButtonDisabled={!newSource.name || isCreating}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+          {uploadError && (
+            <InlineNotification
+              kind="error"
+              title="Error"
+              subtitle={uploadError}
+              lowContrast
+              hideCloseButton
+            />
+          )}
+
+          {uploadProgress && (
+            <InlineNotification
+              kind="info"
+              title="Progress"
+              subtitle={uploadProgress}
+              lowContrast
+              hideCloseButton
+            />
+          )}
+
           <TextInput
             id="source-name"
             labelText="Name"
@@ -174,13 +249,98 @@ export default function DataSourcesPage() {
           />
           <Dropdown
             id="source-type"
-            titleText="Type"
+            titleText="Data Source Type"
             label="Select type"
             items={sourceTypes}
             itemToString={(item) => item?.text || ''}
             selectedItem={sourceTypes.find(t => t.id === newSource.type)}
-            onChange={({ selectedItem }) => setNewSource({ ...newSource, type: selectedItem?.id || 'document' })}
+            onChange={({ selectedItem }) => {
+              setNewSource({ ...newSource, type: selectedItem?.id || 'document' });
+              // Clear files if switching away from document type
+              if (selectedItem?.id !== 'document') {
+                setFilesToUpload([]);
+              }
+            }}
           />
+
+          {/* Document Upload Section - shown when type is 'document' */}
+          {newSource.type === 'document' && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--cds-text-secondary)', display: 'block', marginBottom: '0.5rem' }}>
+                Upload Documents (optional)
+              </label>
+              <div
+                style={{
+                  border: '2px dashed var(--cds-border-subtle)',
+                  borderRadius: '4px',
+                  padding: '1.5rem',
+                  textAlign: 'center',
+                  backgroundColor: 'var(--cds-layer-01)',
+                  cursor: 'pointer',
+                }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload size={24} style={{ marginBottom: '0.5rem', color: 'var(--cds-text-secondary)' }} />
+                <p style={{ fontSize: '0.875rem', color: 'var(--cds-text-secondary)', margin: 0 }}>
+                  Click to select files or drag and drop
+                </p>
+                <p style={{ fontSize: '0.75rem', color: 'var(--cds-text-helper)', margin: '0.25rem 0 0 0' }}>
+                  Supports PDF, DOC, DOCX, TXT, HTML
+                </p>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.txt,.html"
+                style={{ display: 'none' }}
+                onChange={handleFileSelect}
+              />
+
+              {/* File List */}
+              {filesToUpload.length > 0 && (
+                <div style={{ marginTop: '1rem' }}>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--cds-text-secondary)', marginBottom: '0.5rem' }}>
+                    {filesToUpload.length} file(s) selected
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '150px', overflowY: 'auto' }}>
+                    {filesToUpload.map((file, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.5rem 0.75rem',
+                          backgroundColor: 'var(--cds-layer-02)',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Document size={16} />
+                          <span style={{ fontSize: '0.875rem' }}>{file.name}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--cds-text-secondary)' }}>
+                            ({(file.size / 1024).toFixed(1)} KB)
+                          </span>
+                        </div>
+                        <Button
+                          kind="ghost"
+                          size="sm"
+                          hasIconOnly
+                          renderIcon={Close}
+                          iconDescription="Remove"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeFile(index);
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </Modal>
     </div>
