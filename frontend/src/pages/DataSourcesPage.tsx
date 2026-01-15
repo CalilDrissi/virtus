@@ -10,6 +10,8 @@ import {
   Dropdown,
   InlineLoading,
   InlineNotification,
+  FileUploaderDropContainer,
+  FileUploaderItem,
 } from '@carbon/react';
 import { Add, TrashCan, Upload, Close, Document } from '@carbon/icons-react';
 import { dataSourcesApi } from '../services/api';
@@ -77,6 +79,10 @@ export default function DataSourcesPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLElement>, { addedFiles }: { addedFiles: File[] }) => {
+    setFilesToUpload(prev => [...prev, ...addedFiles]);
   };
 
   const removeFile = (index: number) => {
@@ -259,77 +265,30 @@ export default function DataSourcesPage() {
           {/* Document Upload Section - shown when type is 'document' */}
           {newSource.type === 'document' && (
             <div style={{ marginTop: '0.5rem' }}>
-              <label style={{ fontSize: '0.75rem', color: 'var(--cds-text-secondary)', display: 'block', marginBottom: '0.5rem' }}>
+              <p style={{ fontSize: '0.75rem', color: '#525252', marginBottom: '0.5rem' }}>
                 Upload Documents (optional)
-              </label>
-              <div
-                style={{
-                  border: '2px dashed var(--cds-border-subtle)',
-                  borderRadius: '4px',
-                  padding: '1.5rem',
-                  textAlign: 'center',
-                  backgroundColor: 'var(--cds-layer-01)',
-                  cursor: 'pointer',
-                }}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload size={24} style={{ marginBottom: '0.5rem', color: 'var(--cds-text-secondary)' }} />
-                <p style={{ fontSize: '0.875rem', color: 'var(--cds-text-secondary)', margin: 0 }}>
-                  Click to select files or drag and drop
-                </p>
-                <p style={{ fontSize: '0.75rem', color: 'var(--cds-text-helper)', margin: '0.25rem 0 0 0' }}>
-                  Supports PDF, DOC, DOCX, TXT, HTML
-                </p>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
+              </p>
+              <FileUploaderDropContainer
+                accept={['.pdf', '.doc', '.docx', '.txt', '.html']}
+                labelText="Drag and drop files here or click to upload"
                 multiple
-                accept=".pdf,.doc,.docx,.txt,.html"
-                style={{ display: 'none' }}
-                onChange={handleFileSelect}
+                onAddFiles={handleDrop}
               />
 
               {/* File List */}
               {filesToUpload.length > 0 && (
                 <div style={{ marginTop: '1rem' }}>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--cds-text-secondary)', marginBottom: '0.5rem' }}>
+                  <p style={{ fontSize: '0.75rem', color: '#525252', marginBottom: '0.5rem' }}>
                     {filesToUpload.length} file(s) selected
                   </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '150px', overflowY: 'auto' }}>
-                    {filesToUpload.map((file, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '0.5rem 0.75rem',
-                          backgroundColor: 'var(--cds-layer-02)',
-                          borderRadius: '4px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <Document size={16} />
-                          <span style={{ fontSize: '0.875rem' }}>{file.name}</span>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--cds-text-secondary)' }}>
-                            ({(file.size / 1024).toFixed(1)} KB)
-                          </span>
-                        </div>
-                        <Button
-                          kind="ghost"
-                          size="sm"
-                          hasIconOnly
-                          renderIcon={Close}
-                          iconDescription="Remove"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeFile(index);
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  {filesToUpload.map((file, index) => (
+                    <FileUploaderItem
+                      key={index}
+                      name={file.name}
+                      status="edit"
+                      onDelete={() => removeFile(index)}
+                    />
+                  ))}
                 </div>
               )}
             </div>
