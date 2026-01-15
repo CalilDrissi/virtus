@@ -22,8 +22,6 @@ import {
   TableHeader,
   TableBody,
   TableCell,
-  FileUploaderDropContainer,
-  FileUploaderItem,
 } from '@carbon/react';
 import {
   ArrowLeft,
@@ -43,18 +41,12 @@ import {
 } from '@carbon/icons-react';
 import { subscriptionsApi, chatApi, widgetsApi } from '../../services/api';
 import { Subscription, WidgetConfig, APIKey, DataSource } from '../../types';
+import CreateDataSourceModal from '../../components/common/CreateDataSourceModal';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
-
-const sourceTypes = [
-  { id: 'document', text: 'Documents' },
-  { id: 'website', text: 'Website' },
-  { id: 'database', text: 'Database' },
-  { id: 'api', text: 'API' },
-];
 
 export default function SubscriptionDetailPage() {
   const { subscriptionId } = useParams<{ subscriptionId: string }>();
@@ -87,8 +79,7 @@ export default function SubscriptionDetailPage() {
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Data Source state
-  const [newDataSource, setNewDataSource] = useState({ name: '', description: '', type: 'document' });
-  const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
+  const [isDataSourceModalOpen, setIsDataSourceModalOpen] = useState(false);
   const [uploadingToSource, setUploadingToSource] = useState<string | null>(null);
   const [dsError, setDsError] = useState<string | null>(null);
 
@@ -185,13 +176,18 @@ export default function SubscriptionDetailPage() {
 
   // Data source mutations
   const createDataSourceMutation = useMutation({
-    mutationFn: async ({ data, files }: { data: typeof newDataSource; files: File[] }) => {
-      const response = await subscriptionsApi.createDataSource(subscriptionId!, data);
+    mutationFn: async (data: { name: string; description: string; type: string; config?: Record<string, unknown>; files?: File[] }) => {
+      const response = await subscriptionsApi.createDataSource(subscriptionId!, {
+        name: data.name,
+        description: data.description,
+        type: data.type,
+        config: data.config,
+      });
       const createdSource = response.data;
 
-      // Upload files if any
-      if (files.length > 0 && data.type === 'document') {
-        for (const file of files) {
+      // Upload files if any (for document type)
+      if (data.files && data.files.length > 0 && data.type === 'document') {
+        for (const file of data.files) {
           await subscriptionsApi.uploadDocument(subscriptionId!, createdSource.id, file);
         }
       }
@@ -199,8 +195,7 @@ export default function SubscriptionDetailPage() {
     },
     onSuccess: () => {
       refetchDataSources();
-      setNewDataSource({ name: '', description: '', type: 'document' });
-      setFilesToUpload([]);
+      setIsDataSourceModalOpen(false);
       setDsError(null);
     },
     onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
@@ -225,18 +220,6 @@ export default function SubscriptionDetailPage() {
       setUploadingToSource(null);
     },
   });
-
-  const handleCreateDataSource = () => {
-    if (!newDataSource.name) return;
-    createDataSourceMutation.mutate({
-      data: newDataSource,
-      files: filesToUpload,
-    });
-  };
-
-  const handleDrop = (_e: unknown, { addedFiles }: { addedFiles: File[] }) => {
-    setFilesToUpload(prev => [...prev, ...addedFiles]);
-  };
 
   const handleUploadToExisting = (dataSourceId: string) => {
     const input = document.createElement('input');
@@ -579,12 +562,24 @@ export default function SubscriptionDetailPage() {
 
               {/* Add your own data source */}
               <Tile style={{ padding: '1.5rem' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                  Add Your Own Data Source
-                </h3>
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                  Upload your own documents to enhance the AI's responses with your custom knowledge.
-                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                      Add Your Own Data Source
+                    </h3>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                      Upload documents, connect databases, APIs, or websites to enhance the AI's responses with your custom knowledge.
+                    </p>
+                  </div>
+                  <Button
+                    kind="primary"
+                    size="sm"
+                    renderIcon={Add}
+                    onClick={() => setIsDataSourceModalOpen(true)}
+                  >
+                    Add Data Source
+                  </Button>
+                </div>
 
                 {dsError && (
                   <InlineNotification
@@ -593,72 +588,9 @@ export default function SubscriptionDetailPage() {
                     subtitle={dsError}
                     lowContrast
                     hideCloseButton
-                    style={{ marginBottom: '1rem' }}
+                    style={{ marginTop: '1rem' }}
                   />
                 )}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <TextInput
-                      id="ds-name"
-                      labelText="Name"
-                      placeholder="e.g., Company Policies"
-                      value={newDataSource.name}
-                      onChange={(e) => setNewDataSource({ ...newDataSource, name: e.target.value })}
-                    />
-                    <Dropdown
-                      id="ds-type"
-                      titleText="Type"
-                      label="Select type"
-                      items={sourceTypes}
-                      itemToString={(item) => item?.text || ''}
-                      selectedItem={sourceTypes.find(t => t.id === newDataSource.type)}
-                      onChange={({ selectedItem }) => setNewDataSource({ ...newDataSource, type: selectedItem?.id || 'document' })}
-                    />
-                  </div>
-
-                  <TextInput
-                    id="ds-description"
-                    labelText="Description (optional)"
-                    placeholder="Brief description of this data source"
-                    value={newDataSource.description}
-                    onChange={(e) => setNewDataSource({ ...newDataSource, description: e.target.value })}
-                  />
-
-                  {newDataSource.type === 'document' && (
-                    <>
-                      <FileUploaderDropContainer
-                        accept={['.pdf', '.doc', '.docx', '.txt', '.html']}
-                        labelText="Drag and drop files here or click to upload"
-                        multiple
-                        onAddFiles={handleDrop}
-                      />
-                      {filesToUpload.length > 0 && (
-                        <div>
-                          {filesToUpload.map((file, index) => (
-                            <FileUploaderItem
-                              key={index}
-                              name={file.name}
-                              status="edit"
-                              onDelete={() => setFilesToUpload(prev => prev.filter((_, i) => i !== index))}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  <Button
-                    kind="primary"
-                    size="sm"
-                    renderIcon={Add}
-                    onClick={handleCreateDataSource}
-                    disabled={!newDataSource.name || createDataSourceMutation.isPending}
-                    style={{ width: 'fit-content' }}
-                  >
-                    {createDataSourceMutation.isPending ? 'Creating...' : 'Add Data Source'}
-                  </Button>
-                </div>
               </Tile>
 
               {/* User's data sources */}
@@ -1272,6 +1204,20 @@ function App() {
           </div>
         )}
       </Modal>
+
+      {/* Create Data Source Modal */}
+      <CreateDataSourceModal
+        open={isDataSourceModalOpen}
+        onClose={() => setIsDataSourceModalOpen(false)}
+        onSubmit={(data) => createDataSourceMutation.mutate({
+          name: data.name,
+          description: data.description,
+          type: data.type,
+          config: data.config as Record<string, unknown>,
+          files: data.files,
+        })}
+        isLoading={createDataSourceMutation.isPending}
+      />
 
       {/* API Key Modal */}
       <Modal

@@ -13,6 +13,8 @@ import {
   TabPanels,
   TabPanel,
   PasswordInput,
+  FileUploaderDropContainer,
+  FileUploaderItem,
 } from '@carbon/react';
 import { Document, Email, DataBase, Api, Globe } from '@carbon/icons-react';
 
@@ -48,7 +50,7 @@ interface DataSourceConfig {
 interface CreateDataSourceModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; description: string; type: string; config: DataSourceConfig }) => void;
+  onSubmit: (data: { name: string; description: string; type: string; config: DataSourceConfig; files?: File[] }) => void;
   isLoading?: boolean;
 }
 
@@ -86,6 +88,7 @@ export default function CreateDataSourceModal({
   const [description, setDescription] = useState('');
   const [selectedType, setSelectedType] = useState('document');
   const [config, setConfig] = useState<DataSourceConfig>({});
+  const [files, setFiles] = useState<File[]>([]);
 
   const handleTypeChange = (type: string) => {
     setSelectedType(type);
@@ -98,6 +101,7 @@ export default function CreateDataSourceModal({
       description,
       type: selectedType,
       config,
+      files: selectedType === 'document' ? files : undefined,
     });
   };
 
@@ -106,7 +110,16 @@ export default function CreateDataSourceModal({
     setDescription('');
     setSelectedType('document');
     setConfig({});
+    setFiles([]);
     onClose();
+  };
+
+  const handleFileDrop = (_e: unknown, { addedFiles }: { addedFiles: File[] }) => {
+    setFiles(prev => [...prev, ...addedFiles]);
+  };
+
+  const handleFileDelete = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const updateConfig = (key: string, value: unknown) => {
@@ -136,13 +149,33 @@ export default function CreateDataSourceModal({
     switch (selectedType) {
       case 'document':
         return (
-          <InlineNotification
-            kind="info"
-            title="Document Upload"
-            subtitle="After creating this data source, you'll be able to upload PDF, Word, text, and other document files."
-            lowContrast
-            hideCloseButton
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <FileUploaderDropContainer
+              accept={['.pdf', '.doc', '.docx', '.txt', '.html', '.md', '.csv', '.json']}
+              labelText="Drag and drop files here or click to upload"
+              multiple
+              onAddFiles={handleFileDrop}
+            />
+            {files.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {files.map((file, index) => (
+                  <FileUploaderItem
+                    key={index}
+                    name={file.name}
+                    status="edit"
+                    onDelete={() => handleFileDelete(index)}
+                  />
+                ))}
+              </div>
+            )}
+            <InlineNotification
+              kind="info"
+              title="Supported formats"
+              subtitle="PDF, Word (.doc, .docx), Text (.txt), HTML, Markdown (.md), CSV, and JSON files."
+              lowContrast
+              hideCloseButton
+            />
+          </div>
         );
 
       case 'database':
