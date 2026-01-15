@@ -8,21 +8,27 @@ import {
   InlineNotification,
   Dropdown,
   InlineLoading,
+  Modal,
 } from '@carbon/react';
-import { TrashCan } from '@carbon/icons-react';
+import { TrashCan, Add, ArrowRight } from '@carbon/icons-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
-import { organizationsApi, usersApi, rolesApi } from '../../services/api';
+import { organizationsApi, usersApi, rolesApi, billingApi } from '../../services/api';
 import type { User } from '../../types';
 import type { RoleListItem } from '../../types/role';
 
 export default function OrganizationSettings() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { organization, user: currentUser, fetchUser } = useAuthStore();
   const [formData, setFormData] = useState({
     name: organization?.name || '',
     slug: organization?.slug || '',
   });
   const [success, setSuccess] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteData, setInviteData] = useState({ email: '', full_name: '', password: '', role: 'member' });
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   // Fetch users
   const { data: users = [], isLoading: usersLoading } = useQuery({
@@ -60,6 +66,15 @@ export default function OrganizationSettings() {
     enabled: users.length > 0,
   });
 
+  // Fetch current usage
+  const { data: usage } = useQuery({
+    queryKey: ['billing-usage'],
+    queryFn: async () => {
+      const res = await billingApi.getUsage();
+      return res.data as { total_tokens: number; total_cost: number; period_start: string; period_end: string };
+    },
+  });
+
   const updateMutation = useMutation({
     mutationFn: (data: typeof formData) => organizationsApi.update(data),
     onSuccess: () => {
@@ -84,18 +99,22 @@ export default function OrganizationSettings() {
     },
   });
 
+  const createUserMutation = useMutation({
+    mutationFn: (data: { email: string; password: string; full_name?: string; role: string }) =>
+      usersApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setShowInviteModal(false);
+      setInviteData({ email: '', full_name: '', password: '', role: 'member' });
+      setInviteError(null);
+    },
+    onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
+      setInviteError(err.response?.data?.detail || 'Failed to create user');
+    },
+  });
+
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [field]: e.target.value });
-  };
-
-  const getPlanColor = (plan: string): 'blue' | 'green' | 'magenta' | 'purple' => {
-    const colors: Record<string, 'blue' | 'green' | 'magenta' | 'purple'> = {
-      free: 'blue',
-      starter: 'green',
-      pro: 'magenta',
-      enterprise: 'purple',
-    };
-    return colors[plan] || 'blue';
   };
 
   const getRoleColor = (role: string): 'purple' | 'blue' | 'gray' => {
@@ -123,16 +142,37 @@ export default function OrganizationSettings() {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '1rem',
+          justifyContent: 'space-between',
           padding: '1rem',
           backgroundColor: 'var(--bg-primary)',
           marginBottom: '1.5rem',
         }}>
-          <span style={{ fontWeight: 600 }}>Current Plan:</span>
-          <Tag type={getPlanColor(organization?.plan || 'free')} size="md">
-            {organization?.plan?.toUpperCase()}
-          </Tag>
-          <Button kind="tertiary" size="sm">Upgrade</Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                Tokens Used
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>
+                {usage?.total_tokens?.toLocaleString() || '0'}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                Current Cost
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>
+                ${usage?.total_cost ? Number(usage.total_cost).toFixed(2) : '0.00'}
+              </div>
+            </div>
+          </div>
+          <Button
+            kind="tertiary"
+            size="sm"
+            renderIcon={ArrowRight}
+            onClick={() => navigate('/settings/billing')}
+          >
+            See Usage Details
+          </Button>
         </div>
 
         {success && (
@@ -178,9 +218,19 @@ export default function OrganizationSettings() {
 
       {/* Users List */}
       <Tile style={{ padding: '2rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 400, marginBottom: '1.5rem' }}>
-          Team Members
-        </h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 400 }}>
+            Team Members
+          </h2>
+          <Button
+            kind="primary"
+            size="sm"
+            renderIcon={Add}
+            onClick={() => setShowInviteModal(true)}
+          >
+            Invite User
+          </Button>
+        </div>
 
         {usersLoading ? (
           <InlineLoading description="Loading users..." />
@@ -221,8 +271,9 @@ export default function OrganizationSettings() {
                     titleText=""
                     label="Select role"
                     items={roleDropdownItems}
+                    itemToString={(item) => item?.text || ''}
                     selectedItem={
-                      roleDropdownItems.find(r => r.id === userRoles[user.id]) || roleDropdownItems[0]
+                      roleDropdownItems.find(r => r.id === (userRoles[user.id] || '')) || roleDropdownItems[0]
                     }
                     onChange={({ selectedItem }) => {
                       assignRoleMutation.mutate({
@@ -260,6 +311,78 @@ export default function OrganizationSettings() {
           </p>
         )}
       </Tile>
+
+      {/* Invite User Modal */}
+      <Modal
+        open={showInviteModal}
+        onRequestClose={() => {
+          setShowInviteModal(false);
+          setInviteData({ email: '', full_name: '', password: '', role: 'member' });
+          setInviteError(null);
+        }}
+        onRequestSubmit={() => {
+          if (inviteData.email && inviteData.password) {
+            createUserMutation.mutate({
+              email: inviteData.email,
+              password: inviteData.password,
+              full_name: inviteData.full_name || undefined,
+              role: inviteData.role,
+            });
+          }
+        }}
+        modalHeading="Invite User"
+        primaryButtonText="Invite"
+        primaryButtonDisabled={!inviteData.email || !inviteData.password || createUserMutation.isPending}
+        secondaryButtonText="Cancel"
+      >
+        {inviteError && (
+          <InlineNotification
+            kind="error"
+            title="Error"
+            subtitle={inviteError}
+            lowContrast
+            hideCloseButton
+            style={{ marginBottom: '1rem' }}
+          />
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '5rem', overflow: 'visible' }}>
+          <TextInput
+            id="invite-email"
+            labelText="Email Address"
+            placeholder="user@example.com"
+            type="email"
+            value={inviteData.email}
+            onChange={(e) => setInviteData({ ...inviteData, email: e.target.value })}
+          />
+          <TextInput
+            id="invite-name"
+            labelText="Full Name (optional)"
+            placeholder="John Doe"
+            value={inviteData.full_name}
+            onChange={(e) => setInviteData({ ...inviteData, full_name: e.target.value })}
+          />
+          <TextInput
+            id="invite-password"
+            labelText="Temporary Password"
+            placeholder="Enter a temporary password"
+            type="password"
+            value={inviteData.password}
+            onChange={(e) => setInviteData({ ...inviteData, password: e.target.value })}
+          />
+          <Dropdown
+            id="invite-role"
+            titleText="Organization Role"
+            label="Select role"
+            items={['member', 'admin']}
+            selectedItem={inviteData.role}
+            itemToString={(item) => item === 'admin' ? 'Admin' : 'Member'}
+            onChange={({ selectedItem }) => setInviteData({ ...inviteData, role: selectedItem || 'member' })}
+          />
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            The user will need to log in with this email and password. They can change their password after logging in.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }

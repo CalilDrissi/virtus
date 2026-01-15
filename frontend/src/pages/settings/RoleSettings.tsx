@@ -22,6 +22,28 @@ const PERMISSIONS: { id: Permission; label: string; description: string }[] = [
   { id: 'api_key_management', label: 'API Key Management', description: 'Can create and manage API keys' },
 ];
 
+// Default role templates
+const DEFAULT_ROLES: { name: string; description: string; permissions: Permission[]; color: 'blue' | 'green' | 'purple' }[] = [
+  {
+    name: 'Viewer',
+    description: 'Can view and use assigned models and data sources',
+    permissions: ['model_access', 'data_source_access'],
+    color: 'blue',
+  },
+  {
+    name: 'Editor',
+    description: 'Can use models, data sources, and manage API keys',
+    permissions: ['model_access', 'data_source_access', 'api_key_management'],
+    color: 'green',
+  },
+  {
+    name: 'Manager',
+    description: 'Full access including billing and API key management',
+    permissions: ['model_access', 'data_source_access', 'billing_view', 'api_key_management'],
+    color: 'purple',
+  },
+];
+
 export default function RoleSettings() {
   const queryClient = useQueryClient();
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
@@ -187,9 +209,42 @@ export default function RoleSettings() {
           />
         </div>
 
+        {/* Default Role Templates */}
+        {roles.length === 0 && (
+          <div style={{ marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              Quick create from templates:
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {DEFAULT_ROLES.map((template) => (
+                <Button
+                  key={template.name}
+                  kind="tertiary"
+                  size="sm"
+                  style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                  onClick={() => {
+                    setFormData({
+                      name: template.name,
+                      description: template.description,
+                      permissions: template.permissions,
+                      model_ids: [],
+                      data_source_ids: [],
+                    });
+                    setShowCreateModal(true);
+                  }}
+                >
+                  <Tag type={template.color} size="sm" style={{ marginRight: '0.5rem' }}>
+                    {template.name}
+                  </Tag>
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {roles.length === 0 ? (
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem 0' }}>
-            No roles yet. Create one to define access permissions.
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '1rem 0' }}>
+            Or create a custom role with the + button above.
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -368,6 +423,47 @@ export default function RoleSettings() {
           />
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Template Selection - Only show in create mode */}
+          {showCreateModal && !showEditModal && (
+            <div>
+              <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem' }}>Start from Template</h4>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {DEFAULT_ROLES.map((template) => (
+                  <Button
+                    key={template.name}
+                    kind={formData.name === template.name ? 'primary' : 'tertiary'}
+                    size="sm"
+                    onClick={() => {
+                      setFormData({
+                        ...formData,
+                        name: template.name,
+                        description: template.description,
+                        permissions: template.permissions,
+                      });
+                    }}
+                  >
+                    {template.name}
+                  </Button>
+                ))}
+                <Button
+                  kind={!DEFAULT_ROLES.some(t => t.name === formData.name) ? 'primary' : 'tertiary'}
+                  size="sm"
+                  onClick={() => {
+                    setFormData({
+                      name: '',
+                      description: '',
+                      permissions: [],
+                      model_ids: [],
+                      data_source_ids: [],
+                    });
+                  }}
+                >
+                  Custom
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Basic Info */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <TextInput

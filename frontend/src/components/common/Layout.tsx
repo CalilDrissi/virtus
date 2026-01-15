@@ -45,6 +45,12 @@ export default function Layout() {
             Marketplace
           </HeaderMenuItem>
           <HeaderMenuItem
+            isActive={isActive('/data-sources')}
+            onClick={() => navigate('/data-sources')}
+          >
+            Data Sources
+          </HeaderMenuItem>
+          <HeaderMenuItem
             isActive={isActive('/settings')}
             onClick={() => navigate('/settings')}
           >

@@ -12,8 +12,14 @@ import {
   InlineLoading,
 } from '@carbon/react';
 import { Add, TrashCan, UserFollow, Close } from '@carbon/icons-react';
-import { teamsApi } from '../../services/api';
+import { teamsApi, usersApi } from '../../services/api';
 import type { Team, TeamDetail, TeamRole } from '../../types/team';
+
+interface OrgUser {
+  id: string;
+  email: string;
+  full_name?: string;
+}
 
 export default function TeamSettings() {
   const queryClient = useQueryClient();
@@ -21,8 +27,17 @@ export default function TeamSettings() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [newTeam, setNewTeam] = useState({ name: '', description: '' });
-  const [newMember, setNewMember] = useState({ email: '', role: 'member' as TeamRole });
+  const [newMember, setNewMember] = useState({ email: '', role: 'member' as TeamRole, userId: '' });
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch organization users
+  const { data: orgUsers = [] } = useQuery({
+    queryKey: ['org-users'],
+    queryFn: async () => {
+      const res = await usersApi.list();
+      return res.data as OrgUser[];
+    },
+  });
 
   // Fetch teams
   const { data: teams = [], isLoading: teamsLoading } = useQuery({
@@ -72,7 +87,7 @@ export default function TeamSettings() {
       queryClient.invalidateQueries({ queryKey: ['team', selectedTeam?.id] });
       queryClient.invalidateQueries({ queryKey: ['teams'] });
       setShowAddMemberModal(false);
-      setNewMember({ email: '', role: 'member' });
+      setNewMember({ email: '', role: 'member', userId: '' });
     },
     onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
       setError(err.response?.data?.detail || 'Failed to add member');
@@ -306,20 +321,20 @@ export default function TeamSettings() {
         open={showAddMemberModal}
         onRequestClose={() => {
           setShowAddMemberModal(false);
-          setNewMember({ email: '', role: 'member' });
+          setNewMember({ email: '', role: 'member', userId: '' });
           setError(null);
         }}
         onRequestSubmit={() => {
-          if (selectedTeam) {
+          if (selectedTeam && newMember.email) {
             addMemberMutation.mutate({
               teamId: selectedTeam.id,
-              data: newMember,
+              data: { email: newMember.email, role: newMember.role },
             });
           }
         }}
         modalHeading="Add Team Member"
         primaryButtonText="Add"
-        primaryButtonDisabled={!newMember.email || addMemberMutation.isPending}
+        primaryButtonDisabled={!newMember.userId || addMemberMutation.isPending}
         secondaryButtonText="Cancel"
       >
         {error && (
@@ -332,28 +347,33 @@ export default function TeamSettings() {
             style={{ marginBottom: '1rem' }}
           />
         )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <TextInput
-            id="member-email"
-            labelText="Email Address"
-            placeholder="user@example.com"
-            type="email"
-            value={newMember.email}
-            onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '5rem', overflow: 'visible' }}>
+          <Dropdown
+            id="member-user"
+            titleText="Select User"
+            label="Choose a user to add"
+            items={orgUsers.filter(u =>
+              !teamDetail?.members.some(m => m.user_id === u.id)
+            )}
+            selectedItem={orgUsers.find(u => u.id === newMember.userId) || null}
+            itemToString={(user) => user ? `${user.full_name || user.email} (${user.email})` : ''}
+            onChange={({ selectedItem }) => {
+              if (selectedItem) {
+                setNewMember({ ...newMember, userId: selectedItem.id, email: selectedItem.email });
+              }
+            }}
           />
           <Dropdown
             id="member-role"
             titleText="Team Role"
             label="Select role"
-            items={[
-              { id: 'member', text: 'Member' },
-              { id: 'admin', text: 'Admin (can manage team members)' },
-            ]}
-            selectedItem={{ id: newMember.role, text: newMember.role === 'admin' ? 'Admin (can manage team members)' : 'Member' }}
-            onChange={({ selectedItem }) => setNewMember({ ...newMember, role: selectedItem?.id as TeamRole })}
+            items={['member', 'admin']}
+            selectedItem={newMember.role}
+            itemToString={(item) => item === 'admin' ? 'Admin (can manage team members)' : 'Member'}
+            onChange={({ selectedItem }) => setNewMember({ ...newMember, role: (selectedItem || 'member') as TeamRole })}
           />
           <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            This is the team role (admin can manage members). User permissions are controlled by their assigned Role.
+            Select an existing organization user to add to this team. To add new users to the organization, go to Organization settings.
           </p>
         </div>
       </Modal>
