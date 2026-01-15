@@ -37,13 +37,6 @@ export default function DataSourcesPage() {
     queryFn: () => dataSourcesApi.list().then(res => res.data),
   });
 
-  const createMutation = useMutation({
-    mutationFn: (data: typeof newSource) => dataSourcesApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['data-sources'] });
-    },
-  });
-
   const handleCreateWithFiles = async () => {
     setUploadError(null);
     setIsCreating(true);
