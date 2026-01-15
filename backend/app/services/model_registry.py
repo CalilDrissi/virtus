@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from app.models.ai_model import AIModel, ModelPricing, AIProvider, model_data_sources
+from app.models.ai_model import AIModel, ModelPricing, AIProvider
 from app.schemas.ai_model import AIModelCreate, AIModelUpdate, ModelPricingCreate, ModelPricingUpdate
 from app.providers.base import BaseAIProvider
 from app.providers import OpenAIProvider, AnthropicProvider, OllamaProvider, VLLMProvider
