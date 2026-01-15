@@ -122,10 +122,21 @@ export const subscriptionsApi = {
     api.post('/subscriptions/checkout', data),
   cancel: (subscriptionId: string) => api.post(`/subscriptions/${subscriptionId}/cancel`),
   checkLimits: (subscriptionId: string) => api.get(`/subscriptions/${subscriptionId}/usage-limits`),
-  // Data sources
-  getDataSources: (subscriptionId: string) => api.get(`/subscriptions/${subscriptionId}/data-sources`),
-  updateDataSources: (subscriptionId: string, dataSourceIds: string[]) =>
-    api.put(`/subscriptions/${subscriptionId}/data-sources`, { data_source_ids: dataSourceIds }),
+  // Data sources (user-specific)
+  listDataSources: (subscriptionId: string) => api.get(`/subscriptions/${subscriptionId}/data-sources`),
+  createDataSource: (subscriptionId: string, data: { name: string; description?: string; type: string; config?: Record<string, unknown> }) =>
+    api.post(`/subscriptions/${subscriptionId}/data-sources`, data),
+  deleteDataSource: (subscriptionId: string, dataSourceId: string) =>
+    api.delete(`/subscriptions/${subscriptionId}/data-sources/${dataSourceId}`),
+  listDocuments: (subscriptionId: string, dataSourceId: string) =>
+    api.get(`/subscriptions/${subscriptionId}/data-sources/${dataSourceId}/documents`),
+  uploadDocument: (subscriptionId: string, dataSourceId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/subscriptions/${subscriptionId}/data-sources/${dataSourceId}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   // API Keys
   listApiKeys: (subscriptionId: string) => api.get(`/subscriptions/${subscriptionId}/api-keys`),
   createApiKey: (subscriptionId: string, data: { name: string; scopes?: string[]; expires_in_days?: number }) =>

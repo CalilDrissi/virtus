@@ -22,6 +22,8 @@ import {
   TableHeader,
   TableBody,
   TableCell,
+  FileUploaderDropContainer,
+  FileUploaderItem,
 } from '@carbon/react';
 import {
   ArrowLeft,
@@ -37,14 +39,22 @@ import {
   Copy,
   Checkmark,
   Key,
+  Upload,
 } from '@carbon/icons-react';
 import { subscriptionsApi, chatApi, widgetsApi } from '../../services/api';
-import { Subscription, WidgetConfig, APIKey } from '../../types';
+import { Subscription, WidgetConfig, APIKey, DataSource } from '../../types';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
+
+const sourceTypes = [
+  { id: 'document', text: 'Documents' },
+  { id: 'website', text: 'Website' },
+  { id: 'database', text: 'Database' },
+  { id: 'api', text: 'API' },
+];
 
 export default function SubscriptionDetailPage() {
   const { subscriptionId } = useParams<{ subscriptionId: string }>();
@@ -76,6 +86,12 @@ export default function SubscriptionDetailPage() {
   const [showEmbedCode, setShowEmbedCode] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
+  // Data Source state
+  const [newDataSource, setNewDataSource] = useState({ name: '', description: '', type: 'document' });
+  const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
+  const [uploadingToSource, setUploadingToSource] = useState<string | null>(null);
+  const [dsError, setDsError] = useState<string | null>(null);
+
   // API Key state
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
@@ -100,6 +116,17 @@ export default function SubscriptionDetailPage() {
     queryFn: () => subscriptionsApi.listApiKeys(subscriptionId!).then(res => res.data),
     enabled: !!subscriptionId,
   });
+
+  // Fetch data sources for this subscription
+  const { data: allDataSources, isLoading: dsLoading, refetch: refetchDataSources } = useQuery<DataSource[]>({
+    queryKey: ['subscription-data-sources', subscriptionId],
+    queryFn: () => subscriptionsApi.listDataSources(subscriptionId!).then(res => res.data),
+    enabled: !!subscriptionId,
+  });
+
+  // Separate model data sources from user's data sources
+  const modelDataSources = allDataSources?.filter(ds => !ds.subscription_id) || [];
+  const userDataSources = allDataSources?.filter(ds => ds.subscription_id) || [];
 
   // Filter widgets for this model
   const modelWidgets = widgets?.filter(w => w.model_id === subscription?.model_id) || [];
@@ -155,6 +182,75 @@ export default function SubscriptionDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['subscription-api-keys', subscriptionId] });
     },
   });
+
+  // Data source mutations
+  const createDataSourceMutation = useMutation({
+    mutationFn: async ({ data, files }: { data: typeof newDataSource; files: File[] }) => {
+      const response = await subscriptionsApi.createDataSource(subscriptionId!, data);
+      const createdSource = response.data;
+
+      // Upload files if any
+      if (files.length > 0 && data.type === 'document') {
+        for (const file of files) {
+          await subscriptionsApi.uploadDocument(subscriptionId!, createdSource.id, file);
+        }
+      }
+      return response;
+    },
+    onSuccess: () => {
+      refetchDataSources();
+      setNewDataSource({ name: '', description: '', type: 'document' });
+      setFilesToUpload([]);
+      setDsError(null);
+    },
+    onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
+      setDsError(err.response?.data?.detail || err.message || 'Failed to create data source');
+    },
+  });
+
+  const deleteDataSourceMutation = useMutation({
+    mutationFn: (dataSourceId: string) =>
+      subscriptionsApi.deleteDataSource(subscriptionId!, dataSourceId),
+    onSuccess: () => {
+      refetchDataSources();
+    },
+  });
+
+  const uploadToExistingMutation = useMutation({
+    mutationFn: async ({ dataSourceId, file }: { dataSourceId: string; file: File }) => {
+      return subscriptionsApi.uploadDocument(subscriptionId!, dataSourceId, file);
+    },
+    onSuccess: () => {
+      refetchDataSources();
+      setUploadingToSource(null);
+    },
+  });
+
+  const handleCreateDataSource = () => {
+    if (!newDataSource.name) return;
+    createDataSourceMutation.mutate({
+      data: newDataSource,
+      files: filesToUpload,
+    });
+  };
+
+  const handleDrop = (_e: unknown, { addedFiles }: { addedFiles: File[] }) => {
+    setFilesToUpload(prev => [...prev, ...addedFiles]);
+  };
+
+  const handleUploadToExisting = (dataSourceId: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx,.txt,.html';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        setUploadingToSource(dataSourceId);
+        uploadToExistingMutation.mutate({ dataSourceId, file });
+      }
+    };
+    input.click();
+  };
 
   const resetWidgetForm = () => {
     setWidgetForm({
@@ -434,16 +530,17 @@ export default function SubscriptionDetailPage() {
           {/* Data Sources Tab */}
           <TabPanel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingTop: '1rem' }}>
-              <Tile style={{ padding: '1.5rem' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                  Knowledge Base
-                </h3>
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                  This model has access to the following data sources for enhanced, context-aware responses.
-                </p>
-                {model?.data_sources && model.data_sources.length > 0 ? (
+              {/* Model's default data sources */}
+              {modelDataSources.length > 0 && (
+                <Tile style={{ padding: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                    Model's Knowledge Base
+                  </h3>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                    These data sources are included with the model by default.
+                  </p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-                    {model.data_sources.map(ds => (
+                    {modelDataSources.map(ds => (
                       <Tile key={ds.id} style={{ padding: '1rem', backgroundColor: 'var(--bg-primary)' }}>
                         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
                           <div style={{
@@ -467,6 +564,7 @@ export default function SubscriptionDetailPage() {
                             )}
                             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                               <Tag type="blue" size="sm">{ds.type}</Tag>
+                              <Tag type="outline" size="sm">Model Default</Tag>
                               {ds.document_count !== undefined && ds.document_count > 0 && (
                                 <Tag type="gray" size="sm">{ds.document_count} docs</Tag>
                               )}
@@ -476,15 +574,168 @@ export default function SubscriptionDetailPage() {
                       </Tile>
                     ))}
                   </div>
-                ) : (
-                  <Tile style={{ padding: '2rem', textAlign: 'center', backgroundColor: 'var(--bg-primary)' }}>
-                    <DataBase size={48} style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }} />
-                    <p style={{ color: 'var(--text-secondary)' }}>
-                      This model does not have any data sources configured. RAG features are not available.
-                    </p>
-                  </Tile>
+                </Tile>
+              )}
+
+              {/* Add your own data source */}
+              <Tile style={{ padding: '1.5rem' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                  Add Your Own Data Source
+                </h3>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                  Upload your own documents to enhance the AI's responses with your custom knowledge.
+                </p>
+
+                {dsError && (
+                  <InlineNotification
+                    kind="error"
+                    title="Error"
+                    subtitle={dsError}
+                    lowContrast
+                    hideCloseButton
+                    style={{ marginBottom: '1rem' }}
+                  />
                 )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <TextInput
+                      id="ds-name"
+                      labelText="Name"
+                      placeholder="e.g., Company Policies"
+                      value={newDataSource.name}
+                      onChange={(e) => setNewDataSource({ ...newDataSource, name: e.target.value })}
+                    />
+                    <Dropdown
+                      id="ds-type"
+                      titleText="Type"
+                      label="Select type"
+                      items={sourceTypes}
+                      itemToString={(item) => item?.text || ''}
+                      selectedItem={sourceTypes.find(t => t.id === newDataSource.type)}
+                      onChange={({ selectedItem }) => setNewDataSource({ ...newDataSource, type: selectedItem?.id || 'document' })}
+                    />
+                  </div>
+
+                  <TextInput
+                    id="ds-description"
+                    labelText="Description (optional)"
+                    placeholder="Brief description of this data source"
+                    value={newDataSource.description}
+                    onChange={(e) => setNewDataSource({ ...newDataSource, description: e.target.value })}
+                  />
+
+                  {newDataSource.type === 'document' && (
+                    <>
+                      <FileUploaderDropContainer
+                        accept={['.pdf', '.doc', '.docx', '.txt', '.html']}
+                        labelText="Drag and drop files here or click to upload"
+                        multiple
+                        onAddFiles={handleDrop}
+                      />
+                      {filesToUpload.length > 0 && (
+                        <div>
+                          {filesToUpload.map((file, index) => (
+                            <FileUploaderItem
+                              key={index}
+                              name={file.name}
+                              status="edit"
+                              onDelete={() => setFilesToUpload(prev => prev.filter((_, i) => i !== index))}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <Button
+                    kind="primary"
+                    size="sm"
+                    renderIcon={Add}
+                    onClick={handleCreateDataSource}
+                    disabled={!newDataSource.name || createDataSourceMutation.isPending}
+                    style={{ width: 'fit-content' }}
+                  >
+                    {createDataSourceMutation.isPending ? 'Creating...' : 'Add Data Source'}
+                  </Button>
+                </div>
               </Tile>
+
+              {/* User's data sources */}
+              {dsLoading ? (
+                <Loading small withOverlay={false} />
+              ) : userDataSources.length > 0 && (
+                <Tile style={{ padding: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
+                    Your Data Sources
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {userDataSources.map(ds => (
+                      <Tile key={ds.id} style={{ padding: '1rem', backgroundColor: 'var(--bg-primary)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                            <div style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '8px',
+                              backgroundColor: 'var(--border-subtle)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}>
+                              <DataBase size={20} />
+                            </div>
+                            <div>
+                              <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>{ds.name}</h4>
+                              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <Tag type="teal" size="sm">{ds.type}</Tag>
+                                <Tag type="purple" size="sm">Your Data</Tag>
+                                {ds.document_count !== undefined && ds.document_count > 0 && (
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                    {ds.document_count} document(s)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            {ds.type === 'document' && (
+                              <Button
+                                kind="tertiary"
+                                size="sm"
+                                renderIcon={Upload}
+                                onClick={() => handleUploadToExisting(ds.id)}
+                                disabled={uploadingToSource === ds.id}
+                              >
+                                {uploadingToSource === ds.id ? 'Uploading...' : 'Upload'}
+                              </Button>
+                            )}
+                            <Button
+                              kind="danger--ghost"
+                              size="sm"
+                              renderIcon={TrashCan}
+                              hasIconOnly
+                              iconDescription="Delete"
+                              onClick={() => deleteDataSourceMutation.mutate(ds.id)}
+                            />
+                          </div>
+                        </div>
+                      </Tile>
+                    ))}
+                  </div>
+                </Tile>
+              )}
+
+              {/* Empty state */}
+              {!dsLoading && modelDataSources.length === 0 && userDataSources.length === 0 && (
+                <Tile style={{ padding: '2rem', textAlign: 'center', backgroundColor: 'var(--bg-primary)' }}>
+                  <DataBase size={48} style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }} />
+                  <p style={{ color: 'var(--text-secondary)' }}>
+                    No data sources configured yet. Add your own data sources above to enhance the AI's responses.
+                  </p>
+                </Tile>
+              )}
             </div>
           </TabPanel>
 

@@ -27,6 +27,7 @@ class DataSource(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     model_id = Column(UUID(as_uuid=True), ForeignKey("ai_models.id", ondelete="CASCADE"), nullable=False)
+    subscription_id = Column(UUID(as_uuid=True), ForeignKey("subscriptions.id", ondelete="CASCADE"), nullable=True)  # If set, user-specific data source
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     type = Column(Enum(DataSourceType), nullable=False)
@@ -39,6 +40,7 @@ class DataSource(Base):
 
     # Relationships
     model = relationship("AIModel", back_populates="data_sources")
+    subscription = relationship("Subscription", back_populates="data_sources")
     documents = relationship("Document", back_populates="data_source", cascade="all, delete-orphan")
 
     def __repr__(self):

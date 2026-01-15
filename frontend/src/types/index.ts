@@ -94,6 +94,7 @@ export interface SubscriptionWithUsage extends Subscription {
 export interface DataSource {
   id: string;
   model_id: string;
+  subscription_id?: string | null;  // If set, this is a user-specific data source
   name: string;
   description: string | null;
   type: 'document' | 'database' | 'email' | 'api' | 'website';

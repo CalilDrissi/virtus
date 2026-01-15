@@ -24,6 +24,7 @@ class DataSourceUpdate(BaseModel):
 class DataSourceResponse(DataSourceBase):
     id: UUID
     model_id: UUID
+    subscription_id: Optional[UUID] = None  # If set, this is a user-specific data source
     config: Dict[str, Any]
     status: ProcessingStatus
     error_message: Optional[str]

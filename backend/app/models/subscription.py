@@ -1,21 +1,10 @@
 import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
-from sqlalchemy import Column, String, DateTime, Enum, ForeignKey, Table
+from sqlalchemy import Column, String, DateTime, Enum, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
-
-
-# Association table for subscription-data_source many-to-many
-subscription_data_sources = Table(
-    'subscription_data_sources',
-    Base.metadata,
-    Column('id', UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column('subscription_id', UUID(as_uuid=True), ForeignKey('subscriptions.id', ondelete='CASCADE'), nullable=False),
-    Column('data_source_id', UUID(as_uuid=True), ForeignKey('data_sources.id', ondelete='CASCADE'), nullable=False),
-    Column('created_at', DateTime, default=datetime.utcnow, nullable=False),
-)
 
 
 class SubscriptionStatus(str, PyEnum):
@@ -45,7 +34,7 @@ class Subscription(Base):
     organization = relationship("Organization", back_populates="subscriptions")
     model = relationship("AIModel", back_populates="subscriptions")
     usage_records = relationship("UsageRecord", back_populates="subscription")
-    data_sources = relationship("DataSource", secondary=subscription_data_sources, backref="subscriptions")
+    data_sources = relationship("DataSource", back_populates="subscription", cascade="all, delete-orphan")
     api_keys = relationship("APIKey", back_populates="subscription", cascade="all, delete-orphan")
 
     def __repr__(self):

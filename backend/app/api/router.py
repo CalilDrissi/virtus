@@ -9,6 +9,7 @@ api_router.include_router(organizations.router)
 api_router.include_router(models.router)
 api_router.include_router(subscriptions.router)
 api_router.include_router(data_sources.router)  # Model data sources: /models/{id}/data-sources
+api_router.include_router(data_sources.subscription_ds_router)  # Subscription data sources: /subscriptions/{id}/data-sources
 api_router.include_router(data_sources.rag_router)  # RAG query: /data-sources/query
 api_router.include_router(chat.router)
 api_router.include_router(billing.router)
