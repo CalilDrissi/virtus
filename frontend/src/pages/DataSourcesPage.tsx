@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Tile,
@@ -13,7 +13,7 @@ import {
   FileUploaderDropContainer,
   FileUploaderItem,
 } from '@carbon/react';
-import { Add, TrashCan, Upload, Close, Document } from '@carbon/icons-react';
+import { Add, TrashCan, Upload } from '@carbon/icons-react';
 import { dataSourcesApi } from '../services/api';
 import { DataSource } from '../types';
 
@@ -32,7 +32,6 @@ export default function DataSourcesPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: dataSources, isLoading } = useQuery<DataSource[]>({
     queryKey: ['data-sources'],
@@ -72,16 +71,7 @@ export default function DataSourcesPage() {
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    setFilesToUpload(prev => [...prev, ...files]);
-    // Reset input so same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLElement>, { addedFiles }: { addedFiles: File[] }) => {
+  const handleDrop = (_e: unknown, { addedFiles }: { addedFiles: File[] }) => {
     setFilesToUpload(prev => [...prev, ...addedFiles]);
   };
 
